@@ -22,12 +22,10 @@ import {
   usePCDisconnect,
 } from "../../hooks/usePlanningCenter.js";
 import { useMetaStatus, useMetaConnect, useMetaDisconnect } from "../../hooks/useMeta.js";
-import { useYouTubeStatus, useYouTubeDisconnect } from "../../hooks/useGoogle.js";
-import { useTikTokStatus, useTikTokDisconnect } from "../../hooks/useTikTok.js";
+import { useYouTubeStatus, useYouTubeConnect, useYouTubeDisconnect } from "../../hooks/useGoogle.js";
+import { useTikTokStatus, useTikTokConnect, useTikTokDisconnect } from "../../hooks/useTikTok.js";
 
 const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:3001/api";
-const GOOGLE_CONNECT_URL = `${API_BASE}/integrations/google/connect`;
-const TIKTOK_CONNECT_URL = `${API_BASE}/integrations/tiktok/connect`;
 const CONNECT_URL = `${API_BASE}/integrations/planning-center/connect`;
 
 function SyncStatusBadge({ status }) {
@@ -391,6 +389,7 @@ function MetaCard() {
 
 function YouTubeCard() {
   const { data, isLoading } = useYouTubeStatus();
+  const connect = useYouTubeConnect();
   const disconnect = useYouTubeDisconnect();
   const [confirm, setConfirm] = useState(false);
 
@@ -436,15 +435,16 @@ function YouTubeCard() {
             </div>
           </div>
         ) : (
-          <a
-            href={GOOGLE_CONNECT_URL}
-            className="inline-flex items-center gap-2 px-4 py-2 text-[13px] font-medium text-white bg-red-500 rounded-xl hover:bg-red-600 transition-colors"
+          <button
+            onClick={() => connect.mutate()}
+            disabled={connect.isPending}
+            className="inline-flex items-center gap-2 px-4 py-2 text-[13px] font-medium text-white bg-red-500 rounded-xl hover:bg-red-600 transition-colors disabled:opacity-60"
           >
             <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="white">
               <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/>
             </svg>
-            Connect YouTube
-          </a>
+            {connect.isPending ? "Connecting…" : "Connect YouTube"}
+          </button>
         )}
       </div>
     </div>
@@ -461,6 +461,7 @@ function TikTokIcon({ className, fill = "currentColor" }) {
 
 function TikTokCard() {
   const { data, isLoading } = useTikTokStatus();
+  const connect = useTikTokConnect();
   const disconnect = useTikTokDisconnect();
   const [confirm, setConfirm] = useState(false);
 
@@ -504,13 +505,14 @@ function TikTokCard() {
             </div>
           </div>
         ) : (
-          <a
-            href={TIKTOK_CONNECT_URL}
-            className="inline-flex items-center gap-2 px-4 py-2 text-[13px] font-medium text-white bg-gray-900 rounded-xl hover:bg-gray-700 transition-colors"
+          <button
+            onClick={() => connect.mutate()}
+            disabled={connect.isPending}
+            className="inline-flex items-center gap-2 px-4 py-2 text-[13px] font-medium text-white bg-gray-900 rounded-xl hover:bg-gray-700 transition-colors disabled:opacity-60"
           >
             <TikTokIcon className="h-3.5 w-3.5" fill="white" />
-            Connect TikTok
-          </a>
+            {connect.isPending ? "Connecting…" : "Connect TikTok"}
+          </button>
         )}
       </div>
     </div>

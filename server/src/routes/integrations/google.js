@@ -1,6 +1,5 @@
 import { Router } from "express";
 import axios from "axios";
-import { randomBytes } from "crypto";
 import prisma from "../../lib/prisma.js";
 import { encrypt, decrypt } from "../../lib/encryption.js";
 import { requireOrgRole } from "../../middleware/auth.js";
@@ -13,13 +12,19 @@ const SCOPES = [
   "https://www.googleapis.com/auth/userinfo.profile",
 ].join(" ");
 
-const pendingStates = new Map();
-
 function storeState(orgId) {
-  const state = randomBytes(24).toString("hex");
-  pendingStates.set(state, orgId);
-  setTimeout(() => pendingStates.delete(state), 10 * 60 * 1000);
-  return state;
+  const payload = JSON.stringify({ orgId, exp: Date.now() + 10 * 60 * 1000 });
+  return encrypt(payload);
+}
+
+function readState(state) {
+  try {
+    const payload = JSON.parse(decrypt(state));
+    if (Date.now() > payload.exp) return null;
+    return payload.orgId;
+  } catch {
+    return null;
+  }
 }
 
 function callbackUrl() {
@@ -37,9 +42,8 @@ publicGoogleRouter.get("/callback", async (req, res) => {
   const { code, error, state } = req.query;
   if (error || !code || !state) return fail(error || "missing_params");
 
-  const orgId = pendingStates.get(state);
+  const orgId = readState(state);
   if (!orgId) return fail("invalid_state");
-  pendingStates.delete(state);
 
   try {
     // Exchange code for tokens
@@ -96,6 +100,7 @@ publicGoogleRouter.get("/callback", async (req, res) => {
 const router = Router();
 
 // GET /api/integrations/google/connect
+// Returns the Google OAuth URL as JSON — caller navigates client-side
 router.get("/connect", async (req, res, next) => {
   try {
     const state = storeState(req.org.id);
@@ -104,11 +109,11 @@ router.get("/connect", async (req, res, next) => {
       redirect_uri: callbackUrl(),
       response_type: "code",
       scope: SCOPES,
-      access_type: "offline",  // ensures we get a refresh_token
-      prompt: "consent",       // forces refresh_token even if previously granted
+      access_type: "offline",
+      prompt: "consent",
       state,
     });
-    res.redirect(`${GOOGLE_AUTH_URL}?${params}`);
+    res.json({ url: `${GOOGLE_AUTH_URL}?${params}` });
   } catch (err) {
     next(err);
   }

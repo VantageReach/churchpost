@@ -10,8 +10,6 @@ const TIKTOK_TOKEN_URL = "https://open.tiktokapis.com/v2/oauth/token/";
 const TIKTOK_USER_URL = "https://open.tiktokapis.com/v2/user/info/";
 const SCOPES = "user.info.basic,video.publish";
 
-const pendingStates = new Map();
-
 function generatePKCE() {
   const verifier = randomBytes(32).toString("base64url");
   const challenge = createHash("sha256").update(verifier).digest("base64url");
@@ -19,11 +17,19 @@ function generatePKCE() {
 }
 
 function storeState(orgId) {
-  const state = randomBytes(24).toString("hex");
   const { verifier, challenge } = generatePKCE();
-  pendingStates.set(state, { orgId, verifier });
-  setTimeout(() => pendingStates.delete(state), 10 * 60 * 1000);
-  return { state, challenge };
+  const payload = JSON.stringify({ orgId, verifier, exp: Date.now() + 10 * 60 * 1000 });
+  return { state: encrypt(payload), challenge };
+}
+
+function readState(state) {
+  try {
+    const payload = JSON.parse(decrypt(state));
+    if (Date.now() > payload.exp) return null;
+    return { orgId: payload.orgId, verifier: payload.verifier };
+  } catch {
+    return null;
+  }
 }
 
 function callbackUrl() {
@@ -41,9 +47,8 @@ publicTikTokRouter.get("/callback", async (req, res) => {
   const { code, error, state } = req.query;
   if (error || !code || !state) return fail(error || "missing_params");
 
-  const pending = pendingStates.get(state);
+  const pending = readState(state);
   if (!pending) return fail("invalid_state");
-  pendingStates.delete(state);
 
   const { orgId, verifier } = pending;
 
@@ -100,6 +105,7 @@ publicTikTokRouter.get("/callback", async (req, res) => {
 const router = Router();
 
 // GET /api/integrations/tiktok/connect
+// Returns the TikTok OAuth URL as JSON — caller navigates client-side
 router.get("/connect", async (req, res, next) => {
   try {
     const { state, challenge } = storeState(req.org.id);
@@ -112,7 +118,7 @@ router.get("/connect", async (req, res, next) => {
       code_challenge: challenge,
       code_challenge_method: "S256",
     });
-    res.redirect(`${TIKTOK_AUTH_URL}?${params}`);
+    res.json({ url: `${TIKTOK_AUTH_URL}?${params}` });
   } catch (err) {
     next(err);
   }

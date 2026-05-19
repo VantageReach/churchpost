@@ -9,6 +9,13 @@ export function useYouTubeStatus() {
   });
 }
 
+export function useYouTubeConnect() {
+  return useMutation({
+    mutationFn: () => api.get("/integrations/google/connect").then((r) => r.data.url),
+    onSuccess: (url) => { window.location.href = url; },
+  });
+}
+
 export function useYouTubeDisconnect() {
   const qc = useQueryClient();
   return useMutation({

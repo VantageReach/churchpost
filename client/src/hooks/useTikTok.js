@@ -9,6 +9,13 @@ export function useTikTokStatus() {
   });
 }
 
+export function useTikTokConnect() {
+  return useMutation({
+    mutationFn: () => api.get("/integrations/tiktok/connect").then((r) => r.data.url),
+    onSuccess: (url) => { window.location.href = url; },
+  });
+}
+
 export function useTikTokDisconnect() {
   const qc = useQueryClient();
   return useMutation({

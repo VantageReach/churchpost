@@ -117,7 +117,17 @@ async function resolveOrg(req, userId) {
       return prisma.organization.findUnique({ where: { slug } });
     }
     // Custom domain
-    return prisma.organization.findUnique({ where: { customDomain: host } });
+    const byCustomDomain = await prisma.organization.findUnique({ where: { customDomain: host } });
+    if (byCustomDomain) return byCustomDomain;
+
+    // Fallback: API-only deployment — use the user's existing org or first org
+    const existing = await prisma.orgUser.findFirst({
+      where: { clerkId: userId },
+      include: { organization: true },
+      orderBy: { joinedAt: "asc" },
+    });
+    if (existing) return existing.organization;
+    return prisma.organization.findFirst({ orderBy: { createdAt: "asc" } });
   }
 
   // Local dev: use the user's existing org, or fall back to the first org

@@ -188,22 +188,23 @@ export default function Compose() {
           </button>
           <button
             type="button"
+            onClick={() => save("SCHEDULED")}
+            disabled={isSaving || !scheduledAt}
+            title={!scheduledAt ? "Pick a date and time to schedule" : undefined}
+            className="flex items-center gap-2 px-3 lg:px-4 py-2 rounded-xl text-[13px] font-medium text-white transition-all hover:opacity-90 disabled:opacity-40 shadow-sm"
+            style={{ background: "var(--brand-primary)" }}
+          >
+            <Send className="h-3.5 w-3.5" />
+            <span className="hidden sm:inline">Schedule</span>
+          </button>
+          <button
+            type="button"
             onClick={publishNow}
             disabled={isSaving}
             className="flex items-center gap-2 px-3 lg:px-4 py-2 rounded-xl text-[13px] font-medium text-white transition-all hover:opacity-90 disabled:opacity-50 shadow-sm bg-emerald-600 hover:bg-emerald-700"
           >
             <Send className="h-3.5 w-3.5" />
-            <span className="hidden sm:inline">Publish Now</span>
-          </button>
-          <button
-            type="button"
-            onClick={() => save(scheduledAt ? "SCHEDULED" : "DRAFT")}
-            disabled={isSaving}
-            className="flex items-center gap-2 px-3 lg:px-4 py-2 rounded-xl text-[13px] font-medium text-white transition-all hover:opacity-90 disabled:opacity-50 shadow-sm"
-            style={{ background: "var(--brand-primary)" }}
-          >
-            <Send className="h-3.5 w-3.5" />
-            {scheduledAt ? "Schedule" : "Save"}
+            <span className="hidden sm:inline">Publish</span>
           </button>
         </div>
       </div>

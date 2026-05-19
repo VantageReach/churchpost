@@ -11,6 +11,7 @@ import BrandingPanel from "../components/settings/BrandingPanel.jsx";
 import GeneralPanel from "../components/settings/GeneralPanel.jsx";
 import TeamPanel from "../components/settings/TeamPanel.jsx";
 import PlatformsPanel from "../components/settings/PlatformsPanel.jsx";
+import CalendarPanel from "../components/settings/CalendarPanel.jsx";
 
 const TABS = [
   { key: "general", label: "General & AI", icon: SettingsIcon, to: "/settings" },
@@ -45,12 +46,7 @@ export default function Settings() {
       case "platforms":
         return <PlatformsPanel />;
       case "calendar":
-        return (
-          <ComingSoon
-            label="Google Calendar"
-            stage="8 — Connect your church calendar for post-output & event import"
-          />
-        );
+        return <CalendarPanel />;
       case "team":
         return <TeamPanel />;
       default:

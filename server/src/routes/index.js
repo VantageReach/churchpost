@@ -11,6 +11,7 @@ import planningCenterRouter, { publicPCRouter } from "./integrations/planningCen
 import metaRouter, { publicMetaRouter } from "./integrations/meta.js";
 import googleRouter, { publicGoogleRouter } from "./integrations/google.js";
 import tiktokRouter, { publicTikTokRouter } from "./integrations/tiktok.js";
+import googleCalendarRouter, { publicGoogleCalendarRouter } from "./integrations/googleCalendar.js";
 
 const router = Router();
 
@@ -21,6 +22,7 @@ router.use("/integrations/planning-center", publicPCRouter);
 router.use("/integrations/meta", publicMetaRouter);
 router.use("/integrations/google", publicGoogleRouter);
 router.use("/integrations/tiktok", publicTikTokRouter);
+router.use("/integrations/google-calendar", publicGoogleCalendarRouter);
 
 // ── Protected routes ──────────────────────────────────────────────────────────
 router.use(protect);
@@ -36,5 +38,6 @@ router.use("/integrations/planning-center", planningCenterRouter);
 router.use("/integrations/meta", metaRouter);
 router.use("/integrations/google", googleRouter);
 router.use("/integrations/tiktok", tiktokRouter);
+router.use("/integrations/google-calendar", googleCalendarRouter);
 
 export default router;

@@ -590,18 +590,6 @@ export default function PlatformsPanel() {
         <DisconnectedCard />
       )}
 
-      {/* Coming soon */}
-      <div className="rounded-2xl border border-dashed border-gray-200 p-5">
-        <p className="text-[12px] font-semibold text-gray-400 uppercase tracking-wider mb-3">Coming soon</p>
-        <div className="space-y-2">
-          {["Google Calendar"].map((name) => (
-            <div key={name} className="flex items-center gap-2 text-[13px] text-gray-400">
-              <div className="h-1.5 w-1.5 rounded-full bg-gray-300" />
-              {name}
-            </div>
-          ))}
-        </div>
-      </div>
     </div>
   );
 }

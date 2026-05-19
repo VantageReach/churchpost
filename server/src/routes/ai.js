@@ -125,9 +125,14 @@ Include relevant emojis. Write only the caption text. No explanation, no quotes.
 // GET /api/ai/proactive — AI-generated content ideas based on upcoming calendar events
 router.get("/proactive", requireOrgRole("ORG_ADMIN", "EDITOR", "VIEWER"), async (req, res, next) => {
   try {
-    const [settings, pcEvents] = await Promise.all([
+    const [settings, pcEvents, gcalEvents] = await Promise.all([
       prisma.orgSettings.findUnique({ where: { organizationId: req.org.id } }),
       prisma.planningCenterEvent.findMany({
+        where: { organizationId: req.org.id, startsAt: { gte: new Date(), lte: new Date(Date.now() + 21 * 86400_000) } },
+        orderBy: { startsAt: "asc" },
+        take: 8,
+      }),
+      prisma.googleCalendarEvent.findMany({
         where: { organizationId: req.org.id, startsAt: { gte: new Date(), lte: new Date(Date.now() + 21 * 86400_000) } },
         orderBy: { startsAt: "asc" },
         take: 8,
@@ -171,13 +176,21 @@ router.get("/proactive", requireOrgRole("ORG_ADMIN", "EDITOR", "VIEWER"), async 
       return { ...e, daysUntil };
     });
 
-    // Build PC events list (max 5, labeled with source)
-    const pcEventItems = pcEvents.slice(0, 5).map((ev) => {
-      const daysUntil = ev.startsAt
-        ? Math.max(0, Math.round((new Date(ev.startsAt) - today) / 86400_000))
-        : null;
-      return { title: ev.title, source: ev.source, daysUntil, description: ev.description };
-    });
+    // Build combined event list from Planning Center + Google Calendar (max 5 each)
+    const allEventItems = [
+      ...pcEvents.slice(0, 5).map((ev) => ({
+        title: ev.title,
+        source: ev.source,
+        daysUntil: ev.startsAt ? Math.max(0, Math.round((new Date(ev.startsAt) - today) / 86400_000)) : null,
+        description: ev.description,
+      })),
+      ...gcalEvents.slice(0, 5).map((ev) => ({
+        title: ev.title,
+        source: "google_calendar",
+        daysUntil: ev.startsAt ? Math.max(0, Math.round((new Date(ev.startsAt) - today) / 86400_000)) : null,
+        description: ev.description,
+      })),
+    ].slice(0, 8);
 
     // Pick top 5 national calendar events to generate ideas for
     const featuredEvents = withDays.slice(0, 5);
@@ -194,7 +207,7 @@ router.get("/proactive", requireOrgRole("ORG_ADMIN", "EDITOR", "VIEWER"), async 
           hashtags: ["church", "community"],
           platforms: ["facebook", "instagram"],
         })),
-        pcEvents: pcEventItems,
+        pcEvents: allEventItems,
         hasGap,
         upcomingCount,
       });
@@ -211,9 +224,9 @@ router.get("/proactive", requireOrgRole("ORG_ADMIN", "EDITOR", "VIEWER"), async 
       )
       .join("\n");
 
-    const pcList = pcEventItems.length
-      ? "\n\nYour church's upcoming events from Planning Center:\n" +
-        pcEventItems
+    const pcList = allEventItems.length
+      ? "\n\nYour church's upcoming events:\n" +
+        allEventItems
           .map((ev, i) => `${i + 1}. "${ev.title}" (${ev.source})${ev.daysUntil != null ? ` — in ${ev.daysUntil} day${ev.daysUntil !== 1 ? "s" : ""}` : ""}${ev.description ? `: ${ev.description.slice(0, 80)}` : ""}`)
           .join("\n")
       : "";
@@ -254,7 +267,7 @@ No markdown, no explanation. Only the JSON array.`,
       return res.status(500).json({ error: "AI returned invalid JSON", raw });
     }
 
-    res.json({ suggestions, pcEvents: pcEventItems, hasGap, upcomingCount });
+    res.json({ suggestions, pcEvents: allEventItems, hasGap, upcomingCount });
   } catch (err) {
     next(err);
   }

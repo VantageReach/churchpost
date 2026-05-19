@@ -28,6 +28,7 @@ model Organization {
   posts               Post[]
   platformAccounts    PlatformAccount[]
   calendarConnections GoogleCalendarConnection[]
+  gcalEvents          GoogleCalendarEvent[]
   settings            OrgSettings?
   bulkUploadJobs      BulkUploadJob[]
   savedSuggestions    SavedAiSuggestion[]
@@ -142,14 +143,40 @@ model GoogleCalendarConnection {
   id             String       @id @default(cuid())
   organizationId String
   organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  purpose        String       // "posts_output" | "church_events_input"
+  purpose        String       @default("events")
   email          String
-  accessToken    String
-  refreshToken   String
-  calendarId     String
+  accessToken    String       // encrypted
+  refreshToken   String       // encrypted
+  tokenExpiresAt DateTime?
+  calendarId     String       @default("primary")
   connectedAt    DateTime     @default(now())
+  lastSyncedAt   DateTime?
+  syncStatus     String       @default("idle")
+  errorMessage   String?
+  lookAheadDays  Int          @default(60)
+  events         GoogleCalendarEvent[]
 
   @@unique([organizationId, purpose])
+}
+
+model GoogleCalendarEvent {
+  id             String                   @id @default(cuid())
+  organizationId String
+  organization   Organization             @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  connectionId   String
+  connection     GoogleCalendarConnection @relation(fields: [connectionId], references: [id], onDelete: Cascade)
+  googleEventId  String
+  title          String
+  description    String?
+  startsAt       DateTime?
+  endsAt         DateTime?
+  location       String?
+  isAllDay       Boolean                  @default(false)
+  fetchedAt      DateTime                 @default(now())
+  updatedAt      DateTime                 @updatedAt
+
+  @@unique([connectionId, googleEventId])
+  @@index([organizationId, startsAt])
 }
 
 // ── AI & Bulk ─────────────────────────────────────────────────────────────────

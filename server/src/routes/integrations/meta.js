@@ -1,6 +1,5 @@
 import { Router } from "express";
 import axios from "axios";
-import { randomBytes } from "crypto";
 import prisma from "../../lib/prisma.js";
 import { encrypt, decrypt } from "../../lib/encryption.js";
 import { requireOrgRole } from "../../middleware/auth.js";
@@ -10,13 +9,20 @@ const FB_BASE = `https://graph.facebook.com/${FB_VERSION}`;
 const FB_AUTH_URL = `https://www.facebook.com/${FB_VERSION}/dialog/oauth`;
 const SCOPES = "pages_show_list,pages_manage_posts,pages_read_engagement,instagram_basic,instagram_content_publish,public_profile";
 
-const pendingStates = new Map();
-
+// Encode orgId + expiry into the state token so it survives server restarts
 function storeState(orgId) {
-  const state = randomBytes(24).toString("hex");
-  pendingStates.set(state, orgId);
-  setTimeout(() => pendingStates.delete(state), 10 * 60 * 1000);
-  return state;
+  const payload = JSON.stringify({ orgId, exp: Date.now() + 10 * 60 * 1000 });
+  return encrypt(payload);
+}
+
+function readState(state) {
+  try {
+    const payload = JSON.parse(decrypt(state));
+    if (Date.now() > payload.exp) return null;
+    return payload.orgId;
+  } catch {
+    return null;
+  }
 }
 
 function callbackUrl() {
@@ -34,9 +40,8 @@ publicMetaRouter.get("/callback", async (req, res) => {
   const { code, error, state } = req.query;
   if (error || !code || !state) return fail(error || "missing_params");
 
-  const orgId = pendingStates.get(state);
+  const orgId = readState(state);
   if (!orgId) return fail("invalid_state");
-  pendingStates.delete(state);
 
   try {
     // 1. Exchange code for short-lived user token

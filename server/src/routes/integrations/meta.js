@@ -34,6 +34,7 @@ export const publicMetaRouter = Router();
 
 publicMetaRouter.get("/callback", async (req, res) => {
   const CLIENT_URL = process.env.CLIENT_URL || "http://localhost:5173";
+  console.log("[Meta callback] CLIENT_URL:", CLIENT_URL, "query:", JSON.stringify(req.query));
   const fail = (msg) =>
     res.redirect(`${CLIENT_URL}/settings/platforms?meta_error=${encodeURIComponent(msg)}`);
 

@@ -7,7 +7,7 @@ import MediaUpload from "../components/composer/MediaUpload.jsx";
 import SchedulePicker from "../components/composer/SchedulePicker.jsx";
 import AiPanel from "../components/composer/AiPanel.jsx";
 import GraphicBuilderModal from "../components/graphicBuilder/GraphicBuilderModal.jsx";
-import { useCreatePost, useUploadMedia, useAiSuggest } from "../hooks/usePosts.js";
+import { useCreatePost, useUploadMedia, useAiSuggest, usePublishPost } from "../hooks/usePosts.js";
 
 const DEFAULT_PLATFORMS = ["facebook", "instagram"];
 
@@ -43,8 +43,9 @@ export default function Compose() {
   const createPost = useCreatePost();
   const uploadMedia = useUploadMedia();
   const aiSuggest = useAiSuggest();
+  const publishPost = usePublishPost();
 
-  const isSaving = createPost.isPending;
+  const isSaving = createPost.isPending || publishPost.isPending;
   const isUploading = uploadMedia.isPending;
 
   function handlePlatformChange(newPlatforms) {
@@ -125,6 +126,34 @@ export default function Compose() {
     }
   }
 
+  async function publishNow() {
+    setError(null);
+    const hasCaption = platforms.some((p) => captions[p]?.trim());
+    if (!hasCaption) {
+      setError("Please write a caption for at least one platform.");
+      return;
+    }
+    if (platforms.length === 0) {
+      setError("Please select at least one platform.");
+      return;
+    }
+
+    try {
+      const post = await createPost.mutateAsync({
+        title: title || null,
+        captions,
+        platforms,
+        status: "DRAFT",
+        scheduledAt: null,
+        mediaAssets,
+      });
+      await publishPost.mutateAsync(post.id);
+      navigate("/posts");
+    } catch (err) {
+      setError(err?.response?.data?.error || "Failed to publish post.");
+    }
+  }
+
   return (
     <>
     <GraphicBuilderModal
@@ -156,6 +185,15 @@ export default function Compose() {
           >
             <Save className="h-3.5 w-3.5" />
             <span className="hidden sm:inline">Save Draft</span>
+          </button>
+          <button
+            type="button"
+            onClick={publishNow}
+            disabled={isSaving}
+            className="flex items-center gap-2 px-3 lg:px-4 py-2 rounded-xl text-[13px] font-medium text-white transition-all hover:opacity-90 disabled:opacity-50 shadow-sm bg-emerald-600 hover:bg-emerald-700"
+          >
+            <Send className="h-3.5 w-3.5" />
+            <span className="hidden sm:inline">Publish Now</span>
           </button>
           <button
             type="button"

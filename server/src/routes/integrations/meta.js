@@ -157,8 +157,11 @@ router.get("/connect", async (req, res, next) => {
       response_type: "code",
       state,
     });
-    res.redirect(`${FB_AUTH_URL}?${params}`);
+    const redirectUrl = `${FB_AUTH_URL}?${params}`;
+    console.log("[Meta connect] redirecting to:", redirectUrl.slice(0, 120));
+    res.redirect(redirectUrl);
   } catch (err) {
+    console.error("[Meta connect] error:", err.message);
     next(err);
   }
 });

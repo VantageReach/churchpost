@@ -40,6 +40,67 @@ router.get("/", async (req, res, next) => {
   }
 });
 
+// GET /api/posts/calendar?year=2026&month=5
+// Returns posts + national calendar events for a given month
+router.get("/calendar", async (req, res, next) => {
+  try {
+    const year = parseInt(req.query.year) || new Date().getFullYear();
+    const month = parseInt(req.query.month) - 1 || new Date().getMonth(); // 0-indexed
+
+    const start = new Date(year, month, 1);
+    const end = new Date(year, month + 1, 0, 23, 59, 59);
+
+    const posts = await prisma.post.findMany({
+      where: {
+        organizationId: req.org.id,
+        OR: [
+          { scheduledAt: { gte: start, lte: end } },
+          { publishedAt: { gte: start, lte: end } },
+          { createdAt: { gte: start, lte: end }, status: "DRAFT" },
+        ],
+      },
+      include: {
+        author: { select: { name: true } },
+        mediaAssets: { take: 1 },
+      },
+      orderBy: { scheduledAt: "asc" },
+    });
+
+    // Load org settings for calendar filters
+    const settings = await prisma.orgSettings.findUnique({
+      where: { organizationId: req.org.id },
+    });
+
+    const calendarFilters = {
+      holidays: settings?.nationalCalendarHolidays ?? true,
+      liturgical: settings?.nationalCalendarLiturgical ?? true,
+      awareness: settings?.nationalCalendarAwareness ?? true,
+      fun: settings?.nationalCalendarFun ?? true,
+    };
+
+    // Get national calendar entries for the month (check adjacent months for view overlap)
+    const prevYear = month === 0 ? year - 1 : year;
+    const prevMonth = month === 0 ? 11 : month - 1;
+    const nextYear = month === 11 ? year + 1 : year;
+    const nextMonth = month === 11 ? 0 : month + 1;
+
+    const allEntries = [
+      ...getCalendarEntries(prevYear, calendarFilters),
+      ...getCalendarEntries(year, calendarFilters),
+      ...getCalendarEntries(nextYear, calendarFilters),
+    ].filter((e) => {
+      const d = new Date(e.date);
+      const rangeStart = new Date(year, month - 1, 1);
+      const rangeEnd = new Date(year, month + 2, 0);
+      return d >= rangeStart && d <= rangeEnd;
+    });
+
+    res.json({ posts, nationalEvents: allEntries });
+  } catch (err) {
+    next(err);
+  }
+});
+
 // GET /api/posts/:id
 router.get("/:id", async (req, res, next) => {
   try {
@@ -154,67 +215,6 @@ router.delete("/:id", requireOrgRole("ORG_ADMIN", "EDITOR"), async (req, res, ne
 
     await prisma.post.delete({ where: { id: req.params.id } });
     res.json({ success: true });
-  } catch (err) {
-    next(err);
-  }
-});
-
-// GET /api/posts/calendar?year=2026&month=5
-// Returns posts + national calendar events for a given month
-router.get("/calendar", async (req, res, next) => {
-  try {
-    const year = parseInt(req.query.year) || new Date().getFullYear();
-    const month = parseInt(req.query.month) - 1 || new Date().getMonth(); // 0-indexed
-
-    const start = new Date(year, month, 1);
-    const end = new Date(year, month + 1, 0, 23, 59, 59);
-
-    const posts = await prisma.post.findMany({
-      where: {
-        organizationId: req.org.id,
-        OR: [
-          { scheduledAt: { gte: start, lte: end } },
-          { publishedAt: { gte: start, lte: end } },
-          { createdAt: { gte: start, lte: end }, status: "DRAFT" },
-        ],
-      },
-      include: {
-        author: { select: { name: true } },
-        mediaAssets: { take: 1 },
-      },
-      orderBy: { scheduledAt: "asc" },
-    });
-
-    // Load org settings for calendar filters
-    const settings = await prisma.orgSettings.findUnique({
-      where: { organizationId: req.org.id },
-    });
-
-    const calendarFilters = {
-      holidays: settings?.nationalCalendarHolidays ?? true,
-      liturgical: settings?.nationalCalendarLiturgical ?? true,
-      awareness: settings?.nationalCalendarAwareness ?? true,
-      fun: settings?.nationalCalendarFun ?? true,
-    };
-
-    // Get national calendar entries for the month (check adjacent months for view overlap)
-    const prevYear = month === 0 ? year - 1 : year;
-    const prevMonth = month === 0 ? 11 : month - 1;
-    const nextYear = month === 11 ? year + 1 : year;
-    const nextMonth = month === 11 ? 0 : month + 1;
-
-    const allEntries = [
-      ...getCalendarEntries(prevYear, calendarFilters),
-      ...getCalendarEntries(year, calendarFilters),
-      ...getCalendarEntries(nextYear, calendarFilters),
-    ].filter((e) => {
-      const d = new Date(e.date);
-      const rangeStart = new Date(year, month - 1, 1);
-      const rangeEnd = new Date(year, month + 2, 0);
-      return d >= rangeStart && d <= rangeEnd;
-    });
-
-    res.json({ posts, nationalEvents: allEntries });
   } catch (err) {
     next(err);
   }

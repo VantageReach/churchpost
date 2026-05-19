@@ -1,0 +1,247 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ── Platform Level ────────────────────────────────────────────────────────────
+
+model SuperAdmin {
+  id      String @id @default(cuid())
+  clerkId String @unique
+  email   String @unique
+  name    String @default("")
+}
+
+model Organization {
+  id           String   @id @default(cuid())
+  name         String
+  slug         String   @unique
+  customDomain String?  @unique
+  plan         OrgPlan  @default(FREE)
+  createdAt    DateTime @default(now())
+
+  users               OrgUser[]
+  posts               Post[]
+  platformAccounts    PlatformAccount[]
+  calendarConnections GoogleCalendarConnection[]
+  settings            OrgSettings?
+  bulkUploadJobs      BulkUploadJob[]
+  savedSuggestions    SavedAiSuggestion[]
+  pcConnection        PlanningCenterConnection?
+  pcEvents            PlanningCenterEvent[]
+}
+
+enum OrgPlan {
+  FREE
+  STARTER
+  PRO
+}
+
+model OrgUser {
+  id             String       @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  clerkId        String
+  name           String
+  email          String
+  role           OrgRole      @default(EDITOR)
+  joinedAt       DateTime     @default(now())
+  posts          Post[]
+
+  @@unique([organizationId, clerkId])
+  @@index([clerkId])
+}
+
+enum OrgRole {
+  ORG_ADMIN
+  EDITOR
+  VIEWER
+}
+
+// ── Posts ─────────────────────────────────────────────────────────────────────
+
+model Post {
+  id                    String           @id @default(cuid())
+  organizationId        String
+  organization          Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  authorId              String
+  author                OrgUser          @relation(fields: [authorId], references: [id])
+  title                 String?
+  captions              Json
+  platforms             String[]
+  status                PostStatus       @default(DRAFT)
+  scheduledAt           DateTime?
+  publishedAt           DateTime?
+  failedAt              DateTime?
+  failureReason         String?
+  mediaAssets           MediaAsset[]
+  platformResults       PlatformResult[]
+  googleCalendarEventId String?
+  createdAt             DateTime         @default(now())
+  updatedAt             DateTime         @updatedAt
+}
+
+enum PostStatus {
+  DRAFT
+  SCHEDULED
+  PUBLISHED
+  FAILED
+  PARTIAL
+}
+
+model MediaAsset {
+  id        String    @id @default(cuid())
+  postId    String
+  post      Post      @relation(fields: [postId], references: [id], onDelete: Cascade)
+  type      MediaType
+  url       String
+  filename  String
+  size      Int
+  duration  Int?
+  createdAt DateTime  @default(now())
+}
+
+enum MediaType {
+  IMAGE
+  VIDEO
+}
+
+model PlatformResult {
+  id          String    @id @default(cuid())
+  postId      String
+  post        Post      @relation(fields: [postId], references: [id], onDelete: Cascade)
+  platform    String
+  status      String
+  externalId  String?
+  error       String?
+  publishedAt DateTime?
+}
+
+// ── Platform Connections ──────────────────────────────────────────────────────
+
+model PlatformAccount {
+  id             String       @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  platform       String
+  accessToken    String
+  refreshToken   String?
+  accountName    String
+  accountId      String
+  connectedAt    DateTime     @default(now())
+  expiresAt      DateTime?
+
+  @@unique([organizationId, platform])
+}
+
+model GoogleCalendarConnection {
+  id             String       @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  purpose        String       // "posts_output" | "church_events_input"
+  email          String
+  accessToken    String
+  refreshToken   String
+  calendarId     String
+  connectedAt    DateTime     @default(now())
+
+  @@unique([organizationId, purpose])
+}
+
+// ── AI & Bulk ─────────────────────────────────────────────────────────────────
+
+model SavedAiSuggestion {
+  id             String       @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  savedByClerkId String
+  topic          String
+  caption        String
+  hashtags       String[]
+  platforms      String[]
+  usedAt         DateTime?
+  createdAt      DateTime     @default(now())
+}
+
+model BulkUploadJob {
+  id             String       @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  uploadedBy     String
+  filename       String
+  status         String
+  totalRows      Int
+  processedRows  Int          @default(0)
+  failedRows     Int          @default(0)
+  createdAt      DateTime     @default(now())
+}
+
+// ── Planning Center ───────────────────────────────────────────────────────────
+
+model PlanningCenterConnection {
+  id                  String       @id @default(cuid())
+  organizationId      String       @unique
+  organization        Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  accessToken         String       // encrypted
+  refreshToken        String       // encrypted
+  tokenExpiresAt      DateTime?
+  pcOrgName           String?
+  pcOrgId             String?
+  connectedAt         DateTime     @default(now())
+  lastSyncedAt        DateTime?
+  syncStatus          String       @default("idle") // idle | syncing | success | error
+  errorMessage        String?
+  syncCalendar        Boolean      @default(true)
+  syncServices        Boolean      @default(true)
+  syncGroups          Boolean      @default(true)
+  syncRegistrations   Boolean      @default(true)
+  lookAheadDays       Int          @default(60)
+  syncFrequencyHours  Int          @default(4)
+}
+
+model PlanningCenterEvent {
+  id              String       @id @default(cuid())
+  organizationId  String
+  organization    Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  pcEventId       String
+  source          String       // calendar | services | groups | registrations
+  title           String
+  description     String?
+  startsAt        DateTime?
+  endsAt          DateTime?
+  location        String?
+  registrationUrl String?
+  spotsAvailable  Int?
+  metadata        Json?
+  fetchedAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  @@unique([organizationId, pcEventId, source])
+  @@index([organizationId, startsAt])
+}
+
+// ── Org Settings ──────────────────────────────────────────────────────────────
+
+model OrgSettings {
+  id                         String       @id @default(cuid())
+  organizationId             String       @unique
+  organization               Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  aiSystemPrompt             String       @default("You are a social media assistant for a Christian church. Write warm, welcoming, and inclusive content. Avoid religious jargon. Posts should feel community-focused, genuine, and encouraging. Never use clickbait language.")
+  timezone                   String       @default("America/Chicago")
+  brandPrimaryColor          String       @default("#6366f1")
+  brandSecondaryColor        String       @default("#8b5cf6")
+  brandTextOnPrimary         String       @default("#ffffff")
+  logoFullUrl                String?
+  logoIconUrl                String?
+  logoDarkUrl                String?
+  brandFontFamily            String       @default("Inter")
+  nationalCalendarHolidays   Boolean      @default(true)
+  nationalCalendarAwareness  Boolean      @default(true)
+  nationalCalendarLiturgical Boolean      @default(true)
+  nationalCalendarFun        Boolean      @default(true)
+  proactiveSuggestions       Boolean      @default(true)
+}

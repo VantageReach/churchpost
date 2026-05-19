@@ -101,9 +101,11 @@ export default function Login() {
           </div>
         </div>
 
-        <p className="relative z-10 text-[11px] text-white/15">
-          © {new Date().getFullYear()} ChurchPost.social
-        </p>
+        <div className="relative z-10 flex items-center gap-3 text-[11px] text-white/15">
+          <span>© {new Date().getFullYear()} ChurchPost.social</span>
+          <a href="/privacy" className="hover:text-white/40 transition-colors">Privacy</a>
+          <a href="/terms" className="hover:text-white/40 transition-colors">Terms</a>
+        </div>
       </div>
 
       {/* Right — Clerk sign-in */}

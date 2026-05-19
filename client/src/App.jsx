@@ -11,6 +11,8 @@ import Calendar from "./pages/Calendar.jsx";
 import Posts from "./pages/Posts.jsx";
 import BulkUpload from "./pages/BulkUpload.jsx";
 import Settings from "./pages/Settings.jsx";
+import Privacy from "./pages/Privacy.jsx";
+import Terms from "./pages/Terms.jsx";
 
 function AppShell() {
   const { isSignedIn, isLoaded } = useAuth();
@@ -49,6 +51,8 @@ function AppShell() {
           <Route path="/settings/:tab" element={<Settings />} />
         </Route>
       </Route>
+      <Route path="/privacy" element={<Privacy />} />
+      <Route path="/terms" element={<Terms />} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );

@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { requireOrgRole } from "../middleware/auth.js";
 import prisma from "../lib/prisma.js";
-import { getCalendarEntries } from "../../../shared/nationalCalendar.js";
+import { getCalendarEntries } from "../lib/nationalCalendar.js";
 import { publishPost } from "../services/publisher.js";
 import { publishQueue } from "../lib/redis.js";
 

@@ -2,7 +2,7 @@ import { Router } from "express";
 import Anthropic from "@anthropic-ai/sdk";
 import { requireOrgRole } from "../middleware/auth.js";
 import prisma from "../lib/prisma.js";
-import { getUpcomingEntries } from "../../../shared/nationalCalendar.js";
+import { getUpcomingEntries } from "../lib/nationalCalendar.js";
 
 const router = Router();
 

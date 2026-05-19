@@ -2,12 +2,14 @@ import { useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { PenSquare, Save, Send } from "lucide-react";
 import PlatformSelector from "../components/composer/PlatformSelector.jsx";
+import FormatSelector from "../components/composer/FormatSelector.jsx";
 import CaptionEditor from "../components/composer/CaptionEditor.jsx";
 import MediaUpload from "../components/composer/MediaUpload.jsx";
 import SchedulePicker from "../components/composer/SchedulePicker.jsx";
 import AiPanel from "../components/composer/AiPanel.jsx";
 import GraphicBuilderModal from "../components/graphicBuilder/GraphicBuilderModal.jsx";
 import { useCreatePost, useUploadMedia, useAiSuggest, usePublishPost } from "../hooks/usePosts.js";
+import { buildDefaultFormats, getDefaultFormat } from "../lib/postFormats.js";
 
 const DEFAULT_PLATFORMS = ["facebook", "instagram"];
 
@@ -31,7 +33,9 @@ export default function Compose() {
     : {};
 
   const [platforms, setPlatforms] = useState(initPlatforms);
+  const [formats, setFormats] = useState(() => buildDefaultFormats(initPlatforms));
   const [captions, setCaptions] = useState(initCaptions);
+  const [postMeta, setPostMeta] = useState({});
   const [mediaAssets, setMediaAssets] = useState([]);
   const [scheduledAt, setScheduledAt] = useState(prefill?.scheduledAt ?? null);
   const [title, setTitle] = useState("");
@@ -50,11 +54,30 @@ export default function Compose() {
 
   function handlePlatformChange(newPlatforms) {
     setPlatforms(newPlatforms);
-    const updated = { ...captions };
-    Object.keys(updated).forEach((p) => {
-      if (!newPlatforms.includes(p)) delete updated[p];
+
+    // Remove captions for deselected platforms
+    const updatedCaptions = { ...captions };
+    Object.keys(updatedCaptions).forEach((p) => {
+      if (!newPlatforms.includes(p)) delete updatedCaptions[p];
     });
-    setCaptions(updated);
+    setCaptions(updatedCaptions);
+
+    // Sync formats: keep existing selections, add defaults for new platforms
+    setFormats((prev) => {
+      const updated = {};
+      newPlatforms.forEach((p) => {
+        updated[p] = prev[p] ?? getDefaultFormat(p);
+      });
+      return updated;
+    });
+  }
+
+  function handleFormatChange(platform, format) {
+    setFormats((prev) => ({ ...prev, [platform]: format }));
+  }
+
+  function handleMetaChange(platform, meta) {
+    setPostMeta((prev) => ({ ...prev, [platform]: meta }));
   }
 
   function handleUseAiCaption(caption) {
@@ -116,6 +139,8 @@ export default function Compose() {
         title: title || null,
         captions,
         platforms,
+        formats,
+        meta: Object.keys(postMeta).length ? postMeta : null,
         status,
         scheduledAt: status === "SCHEDULED" ? scheduledAt : null,
         mediaAssets,
@@ -143,6 +168,8 @@ export default function Compose() {
         title: title || null,
         captions,
         platforms,
+        formats,
+        meta: Object.keys(postMeta).length ? postMeta : null,
         status: "DRAFT",
         scheduledAt: null,
         mediaAssets,
@@ -234,6 +261,18 @@ export default function Compose() {
             <PlatformSelector selected={platforms} onChange={handlePlatformChange} />
           </Section>
 
+          {/* Format selector — appears once platforms are selected */}
+          {platforms.length > 0 && (
+            <Section title="Format">
+              <FormatSelector
+                platforms={platforms}
+                formats={formats}
+                mediaAssets={mediaAssets}
+                onFormatChange={handleFormatChange}
+              />
+            </Section>
+          )}
+
           {/* AI Panel */}
           {platforms.length > 0 && (
             <AiPanel
@@ -254,6 +293,9 @@ export default function Compose() {
                 platforms={platforms}
                 captions={captions}
                 onChange={setCaptions}
+                formats={formats}
+                postMeta={postMeta}
+                onMetaChange={handleMetaChange}
               />
             </Section>
           )}

@@ -122,7 +122,7 @@ router.get("/:id", async (req, res, next) => {
 // POST /api/posts — create
 router.post("/", requireOrgRole("ORG_ADMIN", "EDITOR"), async (req, res, next) => {
   try {
-    const { title, captions, platforms, status, scheduledAt, mediaAssets } = req.body;
+    const { title, captions, platforms, formats, meta, status, scheduledAt, mediaAssets } = req.body;
 
     if (!captions || !platforms?.length) {
       return res.status(400).json({ error: "captions and platforms are required" });
@@ -135,6 +135,8 @@ router.post("/", requireOrgRole("ORG_ADMIN", "EDITOR"), async (req, res, next) =
         title: title || null,
         captions,
         platforms,
+        formats: formats ?? null,
+        meta: meta ?? null,
         status: status || "DRAFT",
         scheduledAt: scheduledAt ? new Date(scheduledAt) : null,
         ...(mediaAssets?.length && {
@@ -168,7 +170,7 @@ router.put("/:id", requireOrgRole("ORG_ADMIN", "EDITOR"), async (req, res, next)
     });
     if (!existing) return res.status(404).json({ error: "Post not found" });
 
-    const { title, captions, platforms, status, scheduledAt, mediaAssets } = req.body;
+    const { title, captions, platforms, formats, meta, status, scheduledAt, mediaAssets } = req.body;
 
     const post = await prisma.post.update({
       where: { id: req.params.id },
@@ -176,6 +178,8 @@ router.put("/:id", requireOrgRole("ORG_ADMIN", "EDITOR"), async (req, res, next)
         ...(title !== undefined && { title }),
         ...(captions !== undefined && { captions }),
         ...(platforms !== undefined && { platforms }),
+        ...(formats !== undefined && { formats }),
+        ...(meta !== undefined && { meta }),
         ...(status !== undefined && { status }),
         ...(scheduledAt !== undefined && {
           scheduledAt: scheduledAt ? new Date(scheduledAt) : null,

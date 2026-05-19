@@ -79,6 +79,8 @@ model Post {
   publishedAt           DateTime?
   failedAt              DateTime?
   failureReason         String?
+  formats               Json?
+  meta                  Json?
   mediaAssets           MediaAsset[]
   platformResults       PlatformResult[]
   googleCalendarEventId String?

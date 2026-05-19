@@ -78,22 +78,22 @@ router.get("/calendar", async (req, res, next) => {
       fun: settings?.nationalCalendarFun ?? true,
     };
 
-    // Get national calendar entries for the month (check adjacent months for view overlap)
-    const prevYear = month === 0 ? year - 1 : year;
-    const prevMonth = month === 0 ? 11 : month - 1;
-    const nextYear = month === 11 ? year + 1 : year;
-    const nextMonth = month === 11 ? 0 : month + 1;
+    // Get national calendar entries for the month (include adjacent months for view overlap)
+    const years = [...new Set([
+      month === 0 ? year - 1 : year,
+      year,
+      month === 11 ? year + 1 : year,
+    ])];
 
-    const allEntries = [
-      ...getCalendarEntries(prevYear, calendarFilters),
-      ...getCalendarEntries(year, calendarFilters),
-      ...getCalendarEntries(nextYear, calendarFilters),
-    ].filter((e) => {
-      const d = new Date(e.date);
-      const rangeStart = new Date(year, month - 1, 1);
-      const rangeEnd = new Date(year, month + 2, 0);
-      return d >= rangeStart && d <= rangeEnd;
-    });
+    const rangeStart = new Date(year, month - 1, 1);
+    const rangeEnd = new Date(year, month + 2, 0);
+
+    const allEntries = years
+      .flatMap((y) => getCalendarEntries(y, calendarFilters))
+      .filter((e) => {
+        const d = new Date(e.date);
+        return d >= rangeStart && d <= rangeEnd;
+      });
 
     res.json({ posts, nationalEvents: allEntries });
   } catch (err) {

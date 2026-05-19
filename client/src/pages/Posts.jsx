@@ -62,7 +62,7 @@ function PostRow({ post, onDelete, onPublish }) {
         {post.mediaAssets?.[0] ? (
           post.mediaAssets[0].type === "IMAGE" ? (
             <img
-              src={`http://localhost:3001${post.mediaAssets[0].url}`}
+              src={post.mediaAssets[0].url}
               alt=""
               className="h-full w-full object-cover"
             />

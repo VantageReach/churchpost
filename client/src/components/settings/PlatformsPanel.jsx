@@ -21,12 +21,11 @@ import {
   usePCUpdateSettings,
   usePCDisconnect,
 } from "../../hooks/usePlanningCenter.js";
-import { useMetaStatus, useMetaDisconnect } from "../../hooks/useMeta.js";
+import { useMetaStatus, useMetaConnect, useMetaDisconnect } from "../../hooks/useMeta.js";
 import { useYouTubeStatus, useYouTubeDisconnect } from "../../hooks/useGoogle.js";
 import { useTikTokStatus, useTikTokDisconnect } from "../../hooks/useTikTok.js";
 
 const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:3001/api";
-const META_CONNECT_URL = `${API_BASE}/integrations/meta/connect`;
 const GOOGLE_CONNECT_URL = `${API_BASE}/integrations/google/connect`;
 const TIKTOK_CONNECT_URL = `${API_BASE}/integrations/tiktok/connect`;
 const CONNECT_URL = `${API_BASE}/integrations/planning-center/connect`;
@@ -319,6 +318,7 @@ function MetaPlatformRow({ icon: Icon, label, iconBg, iconColor, account, onDisc
 
 function MetaCard() {
   const { data, isLoading } = useMetaStatus();
+  const connect = useMetaConnect();
   const disconnect = useMetaDisconnect();
 
   const fb = data?.facebook;
@@ -375,13 +375,14 @@ function MetaCard() {
             Instagram connects automatically when a Business account is linked to your Facebook Page.
           </p>
         ) : (
-          <a
-            href={META_CONNECT_URL}
-            className="inline-flex items-center gap-2 px-4 py-2 text-[13px] font-medium text-white bg-blue-600 rounded-xl hover:bg-blue-700 transition-colors"
+          <button
+            onClick={() => connect.mutate()}
+            disabled={connect.isPending}
+            className="inline-flex items-center gap-2 px-4 py-2 text-[13px] font-medium text-white bg-blue-600 rounded-xl hover:bg-blue-700 transition-colors disabled:opacity-60"
           >
             <Facebook className="h-3.5 w-3.5" />
-            Connect with Facebook
-          </a>
+            {connect.isPending ? "Connecting…" : "Connect with Facebook"}
+          </button>
         )}
       </div>
     </div>

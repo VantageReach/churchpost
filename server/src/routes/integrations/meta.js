@@ -147,6 +147,8 @@ publicMetaRouter.get("/callback", async (req, res) => {
 const router = Router();
 
 // GET /api/integrations/meta/connect
+// Returns the Facebook OAuth URL as JSON — caller navigates client-side
+// (browser navigations don't send Clerk Bearer tokens, so we can't redirect server-side)
 router.get("/connect", async (req, res, next) => {
   try {
     const state = storeState(req.org.id);
@@ -157,9 +159,8 @@ router.get("/connect", async (req, res, next) => {
       response_type: "code",
       state,
     });
-    const redirectUrl = `${FB_AUTH_URL}?${params}`;
-    console.log("[Meta connect] redirecting to:", redirectUrl.slice(0, 120));
-    res.redirect(redirectUrl);
+    const url = `${FB_AUTH_URL}?${params}`;
+    res.json({ url });
   } catch (err) {
     console.error("[Meta connect] error:", err.message);
     next(err);

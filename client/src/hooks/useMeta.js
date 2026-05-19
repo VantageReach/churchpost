@@ -9,6 +9,13 @@ export function useMetaStatus() {
   });
 }
 
+export function useMetaConnect() {
+  return useMutation({
+    mutationFn: () => api.get("/integrations/meta/connect").then((r) => r.data.url),
+    onSuccess: (url) => { window.location.href = url; },
+  });
+}
+
 export function useMetaDisconnect() {
   const qc = useQueryClient();
   return useMutation({

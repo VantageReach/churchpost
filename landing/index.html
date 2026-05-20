@@ -1059,22 +1059,46 @@
     <form class="signup-form" id="accessForm">
       <div class="form-row">
         <div class="form-field">
-          <label for="fname">First name</label>
+          <label for="fname">First name *</label>
           <input type="text" id="fname" name="fname" placeholder="John" required />
         </div>
         <div class="form-field">
-          <label for="lname">Last name</label>
+          <label for="lname">Last name *</label>
           <input type="text" id="lname" name="lname" placeholder="Smith" required />
         </div>
       </div>
-      <div class="form-field">
-        <label for="email">Email address</label>
-        <input type="email" id="email" name="email" placeholder="john@yourchurch.com" required />
+      <div class="form-row">
+        <div class="form-field">
+          <label for="email">Email address *</label>
+          <input type="email" id="email" name="email" placeholder="john@yourchurch.com" required />
+        </div>
+        <div class="form-field">
+          <label for="phone">Phone (optional)</label>
+          <input type="tel" id="phone" name="phone" placeholder="(555) 000-0000" />
+        </div>
       </div>
       <div class="form-row">
         <div class="form-field">
-          <label for="church">Church name</label>
+          <label for="church">Church name *</label>
           <input type="text" id="church" name="church" placeholder="Grace Community Church" required />
+        </div>
+        <div class="form-field">
+          <label for="website">Church website *</label>
+          <input type="url" id="website" name="website" placeholder="https://yourchurch.com" required />
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-field">
+          <label for="role">Your role *</label>
+          <select id="role" name="role" required>
+            <option value="">Select…</option>
+            <option>Pastor / Lead Pastor</option>
+            <option>Communications Director</option>
+            <option>Social Media Manager</option>
+            <option>Administrative Staff</option>
+            <option>Volunteer</option>
+            <option>Other</option>
+          </select>
         </div>
         <div class="form-field">
           <label for="size">Congregation size</label>
@@ -1087,6 +1111,41 @@
             <option>5,000+</option>
           </select>
         </div>
+      </div>
+      <div class="form-field">
+        <label>Platforms you're currently using (select all that apply)</label>
+        <div style="display:flex; flex-wrap:wrap; gap:0.625rem; margin-top:0.25rem;">
+          <label style="display:flex;align-items:center;gap:0.5rem;font-size:0.875rem;color:var(--text-muted);text-transform:none;letter-spacing:0;cursor:pointer;">
+            <input type="checkbox" name="platforms" value="Facebook" style="accent-color:var(--gold);width:15px;height:15px;" /> Facebook
+          </label>
+          <label style="display:flex;align-items:center;gap:0.5rem;font-size:0.875rem;color:var(--text-muted);text-transform:none;letter-spacing:0;cursor:pointer;">
+            <input type="checkbox" name="platforms" value="Instagram" style="accent-color:var(--gold);width:15px;height:15px;" /> Instagram
+          </label>
+          <label style="display:flex;align-items:center;gap:0.5rem;font-size:0.875rem;color:var(--text-muted);text-transform:none;letter-spacing:0;cursor:pointer;">
+            <input type="checkbox" name="platforms" value="YouTube" style="accent-color:var(--gold);width:15px;height:15px;" /> YouTube
+          </label>
+          <label style="display:flex;align-items:center;gap:0.5rem;font-size:0.875rem;color:var(--text-muted);text-transform:none;letter-spacing:0;cursor:pointer;">
+            <input type="checkbox" name="platforms" value="TikTok" style="accent-color:var(--gold);width:15px;height:15px;" /> TikTok
+          </label>
+          <label style="display:flex;align-items:center;gap:0.5rem;font-size:0.875rem;color:var(--text-muted);text-transform:none;letter-spacing:0;cursor:pointer;">
+            <input type="checkbox" name="platforms" value="None yet" style="accent-color:var(--gold);width:15px;height:15px;" /> None yet
+          </label>
+        </div>
+      </div>
+      <div class="form-field">
+        <label for="heardFrom">How did you hear about ChurchPost?</label>
+        <select id="heardFrom" name="heardFrom">
+          <option value="">Select…</option>
+          <option>Word of mouth / Another church</option>
+          <option>Google search</option>
+          <option>Social media</option>
+          <option>Church conference or event</option>
+          <option>Other</option>
+        </select>
+      </div>
+      <div class="form-field">
+        <label for="notes">Anything else you'd like us to know? (optional)</label>
+        <textarea id="notes" name="notes" placeholder="Tell us about your current social media setup, challenges, or anything else…"></textarea>
       </div>
       <button type="submit" class="form-submit">Request Early Access →</button>
       <p class="form-note">No credit card required. We'll reach out within 24 hours.</p>
@@ -1181,11 +1240,16 @@
     e.preventDefault();
     const form = this;
     const data = new FormData(form);
-    const body = Object.fromEntries(data.entries());
 
-    // Send to hello@churchpost.social via mailto as fallback
-    // Replace this with your form endpoint (Formspree, etc.)
-    fetch('https://formspree.io/f/REPLACE_WITH_YOUR_ID', {
+    // Collect checkboxes as comma-separated string
+    const platforms = Array.from(form.querySelectorAll('input[name="platforms"]:checked'))
+      .map(cb => cb.value).join(', ');
+    const body = Object.fromEntries(
+      [...data.entries()].filter(([k]) => k !== 'platforms')
+    );
+    if (platforms) body.platforms = platforms;
+
+    fetch('https://formspree.io/f/mwvzlpvw', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
       body: JSON.stringify(body)

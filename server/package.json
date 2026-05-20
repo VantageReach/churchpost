@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "nodemon src/index.js",
-    "start": "node src/index.js",
+    "start": "prisma db push && node src/index.js",
     "db:generate": "prisma generate",
     "db:migrate": "prisma db push",
     "db:migrate:deploy": "prisma migrate deploy",

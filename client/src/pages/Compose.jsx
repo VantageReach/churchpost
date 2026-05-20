@@ -7,6 +7,7 @@ import CaptionEditor from "../components/composer/CaptionEditor.jsx";
 import MediaUpload from "../components/composer/MediaUpload.jsx";
 import FormatPackPanel from "../components/composer/FormatPackPanel.jsx";
 import CropModal from "../components/composer/CropModal.jsx";
+import VideoProcessModal from "../components/composer/VideoProcessModal.jsx";
 import SchedulePicker from "../components/composer/SchedulePicker.jsx";
 import AiPanel from "../components/composer/AiPanel.jsx";
 import GraphicBuilderModal from "../components/graphicBuilder/GraphicBuilderModal.jsx";
@@ -47,6 +48,7 @@ export default function Compose() {
   const [error, setError] = useState(null);
   const [graphicBuilderOpen, setGraphicBuilderOpen] = useState(false);
   const [graphicPrefill, setGraphicPrefill] = useState(null);
+  const [videoTarget, setVideoTarget] = useState(null); // { asset, platform, format, ratio }
 
   const createPost = useCreatePost();
   const uploadMedia = useUploadMedia();
@@ -108,6 +110,23 @@ export default function Compose() {
         return updated;
       });
     }
+  }
+
+  function openVideoModal(asset, platform = null, format = null, ratio = null) {
+    const targetPlatform = platform ?? platforms[0];
+    const targetFormat = format ?? formats[targetPlatform];
+    const config = getFormatConfig(targetPlatform, targetFormat);
+    const targetRatio = ratio ?? config?.ratios?.[config.ratios.length - 1] ?? "9:16";
+    setVideoTarget({ asset, platform: targetPlatform, format: targetFormat, ratio: targetRatio });
+  }
+
+  function handleVideoApply({ platform, format, aspectRatio, variantUrl }) {
+    const assetId = videoTarget?.asset?.id;
+    if (assetId) {
+      const key = `${assetId}__${platform}__${format}`;
+      setCropVariants((prev) => ({ ...prev, [key]: variantUrl }));
+    }
+    setVideoTarget(null);
   }
 
   // Open crop modal — from thumbnail click (no specific target) or from format pack
@@ -200,6 +219,18 @@ export default function Compose() {
 
   return (
     <>
+    {/* Video process modal */}
+    {videoTarget && (
+      <VideoProcessModal
+        asset={videoTarget.asset}
+        platform={videoTarget.platform}
+        format={videoTarget.format}
+        aspectRatio={videoTarget.ratio}
+        onApply={handleVideoApply}
+        onClose={() => setVideoTarget(null)}
+      />
+    )}
+
     {/* Crop modal */}
     {cropTarget && (
       <CropModal
@@ -314,6 +345,7 @@ export default function Compose() {
               isUploading={isUploading}
               onOpenGraphicBuilder={() => openGraphicBuilder()}
               onCropAsset={(asset) => openCropModal(asset)}
+              onProcessVideo={(asset) => openVideoModal(asset)}
               cropVariants={cropVariants}
             />
             {/* Format pack panel — shown when multiple ratios are needed */}

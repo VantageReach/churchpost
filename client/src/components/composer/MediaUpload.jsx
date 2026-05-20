@@ -1,8 +1,8 @@
 import { useDropzone } from "react-dropzone";
-import { Upload, X, Film, Image, PenSquare, Crop, CheckCircle2 } from "lucide-react";
+import { Upload, X, Film, PenSquare, Crop, CheckCircle2, Scissors } from "lucide-react";
 import { cn } from "../../lib/utils.js";
 
-function MediaThumb({ asset, onRemove, onCrop, isCropped }) {
+function MediaThumb({ asset, onRemove, onCrop, onProcessVideo, isCropped }) {
   const isVideo = asset.type === "VIDEO";
   const src = asset.url.startsWith("/") ? `http://localhost:3001${asset.url}` : asset.url;
 
@@ -30,6 +30,17 @@ function MediaThumb({ asset, onRemove, onCrop, isCropped }) {
             title="Crop"
           >
             <Crop className="h-3.5 w-3.5" />
+          </button>
+        )}
+        {/* Process button (videos only) */}
+        {isVideo && onProcessVideo && (
+          <button
+            type="button"
+            onClick={(e) => { e.stopPropagation(); onProcessVideo(asset); }}
+            className="opacity-0 group-hover:opacity-100 transition-opacity p-1.5 rounded-full bg-white/90 text-gray-700 hover:bg-white hover:text-indigo-600"
+            title="Crop / Trim"
+          >
+            <Scissors className="h-3.5 w-3.5" />
           </button>
         )}
         {/* Remove button */}
@@ -62,7 +73,7 @@ function MediaThumb({ asset, onRemove, onCrop, isCropped }) {
   );
 }
 
-export default function MediaUpload({ assets, onAdd, onRemove, isUploading, onOpenGraphicBuilder, onCropAsset, cropVariants = {} }) {
+export default function MediaUpload({ assets, onAdd, onRemove, isUploading, onOpenGraphicBuilder, onCropAsset, onProcessVideo, cropVariants = {} }) {
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     accept: {
       "image/jpeg": [],
@@ -139,6 +150,7 @@ export default function MediaUpload({ assets, onAdd, onRemove, isUploading, onOp
                 asset={asset}
                 onRemove={onRemove}
                 onCrop={onCropAsset}
+                onProcessVideo={onProcessVideo}
                 isCropped={hasCrop}
               />
             );

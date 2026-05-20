@@ -2,11 +2,18 @@ import { Router } from "express";
 import multer from "multer";
 import { extname } from "path";
 import { randomBytes } from "crypto";
+import { tmpdir } from "os";
+import { join } from "path";
+import { writeFile, readFile, rm } from "fs/promises";
 import axios from "axios";
 import sharp from "sharp";
+import ffmpeg from "fluent-ffmpeg";
+import ffmpegStatic from "ffmpeg-static";
 import { requireOrgRole } from "../middleware/auth.js";
 import { uploadToR2 } from "../lib/r2.js";
 import prisma from "../lib/prisma.js";
+
+ffmpeg.setFfmpegPath(ffmpegStatic);
 
 const upload = multer({
   storage: multer.memoryStorage(),
@@ -174,6 +181,91 @@ router.post("/crop", requireOrgRole("ORG_ADMIN", "EDITOR"), async (req, res, nex
   } catch (err) {
     console.error("[Media crop]", err.message);
     next(err);
+  }
+});
+
+// POST /api/media/process-video — crop/trim a video asset to a target ratio
+// Body: { assetId, platform, format, aspectRatio, cropData: { zoom, offsetX, offsetY }, trimStart?, trimEnd? }
+router.post("/process-video", requireOrgRole("ORG_ADMIN", "EDITOR"), async (req, res, next) => {
+  const tmpIn  = join(tmpdir(), `vid-in-${randomBytes(8).toString("hex")}.mp4`);
+  const tmpOut = join(tmpdir(), `vid-out-${randomBytes(8).toString("hex")}.mp4`);
+
+  try {
+    const { assetId, platform, format, aspectRatio, cropData = {}, trimStart, trimEnd } = req.body;
+    if (!assetId || !platform || !format || !aspectRatio) {
+      return res.status(400).json({ error: "assetId, platform, format, and aspectRatio are required" });
+    }
+
+    const asset = await prisma.mediaAsset.findUnique({ where: { id: assetId } });
+    if (!asset) return res.status(404).json({ error: "Asset not found" });
+    if (asset.type !== "VIDEO") return res.status(400).json({ error: "Use /crop for image assets" });
+
+    const srcUrl = asset.originalUrl ?? asset.url;
+    const response = await axios.get(srcUrl, { responseType: "arraybuffer" });
+    await writeFile(tmpIn, Buffer.from(response.data));
+
+    const { zoom = 1, offsetX = 0, offsetY = 0 } = cropData;
+    const [rw, rh] = aspectRatio.split(":").map(Number);
+    const frameAspect = rw / rh;
+    const outDims = OUTPUT_DIMS[aspectRatio] ?? { width: 1080, height: Math.round(1080 / frameAspect) };
+
+    // Build FFmpeg filter: crop then scale
+    // Use ffprobe to get natural dimensions
+    const { natW, natH } = await new Promise((resolve, reject) => {
+      ffmpeg.ffprobe(tmpIn, (err, data) => {
+        if (err) return reject(err);
+        const vs = data.streams.find((s) => s.codec_type === "video");
+        resolve({ natW: vs?.width ?? 1920, natH: vs?.height ?? 1080 });
+      });
+    });
+
+    const natAspect = natW / natH;
+    let frameW_px, frameH_px;
+    if (natAspect > frameAspect) {
+      frameH_px = natH / zoom;
+      frameW_px = frameH_px * frameAspect;
+    } else {
+      frameW_px = natW / zoom;
+      frameH_px = frameW_px / frameAspect;
+    }
+
+    const centerX = natW / 2 - (offsetX * natW);
+    const centerY = natH / 2 - (offsetY * natH);
+    const cropX = Math.max(0, Math.round(centerX - frameW_px / 2));
+    const cropY = Math.max(0, Math.round(centerY - frameH_px / 2));
+    const cropW = Math.min(natW - cropX, Math.round(frameW_px));
+    const cropH = Math.min(natH - cropY, Math.round(frameH_px));
+
+    const vfFilter = `crop=${cropW}:${cropH}:${cropX}:${cropY},scale=${outDims.width}:${outDims.height}`;
+
+    await new Promise((resolve, reject) => {
+      let cmd = ffmpeg(tmpIn).videoCodec("libx264").audioCodec("aac")
+        .outputOptions(["-preset fast", "-crf 23", "-movflags +faststart"])
+        .videoFilters(vfFilter);
+
+      if (trimStart != null) cmd = cmd.setStartTime(trimStart);
+      if (trimEnd   != null) cmd = cmd.setDuration(trimEnd - (trimStart ?? 0));
+
+      cmd.output(tmpOut).on("end", resolve).on("error", reject).run();
+    });
+
+    const outBuffer = await readFile(tmpOut);
+    const variantKey = `variants/${assetId}/${platform}-${format}-${randomBytes(4).toString("hex")}.mp4`;
+    const variantUrl = await uploadToR2(outBuffer, variantKey, "video/mp4");
+
+    const variant = await prisma.mediaVariant.upsert({
+      where: { assetId_platform_format: { assetId, platform, format } },
+      update: { url: variantUrl, aspectRatio, cropData, trimStart: trimStart ?? null, trimEnd: trimEnd ?? null },
+      create: { assetId, platform, format, aspectRatio, url: variantUrl, cropData, trimStart: trimStart ?? null, trimEnd: trimEnd ?? null },
+    });
+
+    res.json({ variantId: variant.id, url: variantUrl });
+  } catch (err) {
+    console.error("[Video process]", err.message);
+    next(err);
+  } finally {
+    await rm(tmpIn, { force: true });
+    await rm(tmpOut, { force: true });
   }
 });
 

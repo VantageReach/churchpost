@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { protect, resolveOrgAndUser } from "../middleware/auth.js";
 import orgSettingsRouter from "./orgSettings.js";
+import orgsRouter from "./orgs.js";
 import postsRouter from "./posts.js";
 import mediaRouter from "./media.js";
 import aiRouter from "./ai.js";
@@ -24,8 +25,11 @@ router.use("/integrations/google", publicGoogleRouter);
 router.use("/integrations/tiktok", publicTikTokRouter);
 router.use("/integrations/google-calendar", publicGoogleCalendarRouter);
 
-// ── Protected routes ──────────────────────────────────────────────────────────
+// ── Protected routes (no org context required — for onboarding) ───────────────
 router.use(protect);
+router.use("/orgs", orgsRouter);
+
+// ── Protected routes (org context required) ───────────────────────────────────
 router.use(resolveOrgAndUser);
 
 router.use("/posts", postsRouter);

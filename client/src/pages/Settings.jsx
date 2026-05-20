@@ -5,6 +5,7 @@ import {
   Plug,
   CalendarDays,
   Users,
+  CreditCard,
 } from "lucide-react";
 import { cn } from "../lib/utils.js";
 import BrandingPanel from "../components/settings/BrandingPanel.jsx";
@@ -12,6 +13,7 @@ import GeneralPanel from "../components/settings/GeneralPanel.jsx";
 import TeamPanel from "../components/settings/TeamPanel.jsx";
 import PlatformsPanel from "../components/settings/PlatformsPanel.jsx";
 import CalendarPanel from "../components/settings/CalendarPanel.jsx";
+import AccountPanel from "../components/settings/AccountPanel.jsx";
 
 const TABS = [
   { key: "general", label: "General & AI", icon: SettingsIcon, to: "/settings" },
@@ -19,6 +21,7 @@ const TABS = [
   { key: "platforms", label: "Platforms", icon: Plug, to: "/settings/platforms" },
   { key: "calendar", label: "Calendar", icon: CalendarDays, to: "/settings/calendar" },
   { key: "team", label: "Team", icon: Users, to: "/settings/team" },
+  { key: "account", label: "Account", icon: CreditCard, to: "/settings/account" },
 ];
 
 function ComingSoon({ label, stage }) {
@@ -49,6 +52,8 @@ export default function Settings() {
         return <CalendarPanel />;
       case "team":
         return <TeamPanel />;
+      case "account":
+        return <AccountPanel />;
       default:
         return <GeneralPanel />;
     }

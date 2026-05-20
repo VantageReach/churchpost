@@ -114,31 +114,37 @@ async function resolveOrg(req, userId) {
     if (host.endsWith(".churchpost.social")) {
       const slug = host.replace(".churchpost.social", "");
       if (slug === "admin") return null; // Super Admin portal handled separately
+      // app.churchpost.social is the shared multi-tenant host — resolve by user membership
+      if (slug === "app") {
+        const existing = await prisma.orgUser.findFirst({
+          where: { clerkId: userId, NOT: { clerkId: { startsWith: "pending:" } } },
+          include: { organization: true },
+          orderBy: { joinedAt: "asc" },
+        });
+        return existing?.organization ?? null;
+      }
       return prisma.organization.findUnique({ where: { slug } });
     }
     // Custom domain
     const byCustomDomain = await prisma.organization.findUnique({ where: { customDomain: host } });
     if (byCustomDomain) return byCustomDomain;
 
-    // Fallback: API-only deployment — use the user's existing org or first org
+    // Fallback: resolve by user's existing org membership only (never auto-assign to first org)
     const existing = await prisma.orgUser.findFirst({
-      where: { clerkId: userId },
+      where: { clerkId: userId, NOT: { clerkId: { startsWith: "pending:" } } },
       include: { organization: true },
       orderBy: { joinedAt: "asc" },
     });
-    if (existing) return existing.organization;
-    return prisma.organization.findFirst({ orderBy: { createdAt: "asc" } });
+    return existing?.organization ?? null;
   }
 
-  // Local dev: use the user's existing org, or fall back to the first org
+  // Local dev: use the user's existing org membership only
   const existing = await prisma.orgUser.findFirst({
-    where: { clerkId: userId },
+    where: { clerkId: userId, NOT: { clerkId: { startsWith: "pending:" } } },
     include: { organization: true },
     orderBy: { joinedAt: "asc" },
   });
-  if (existing) return existing.organization;
-
-  return prisma.organization.findFirst({ orderBy: { createdAt: "asc" } });
+  return existing?.organization ?? null;
 }
 
 // Require a specific OrgRole on a route. Super Admins bypass all role checks.

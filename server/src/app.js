@@ -1,4 +1,5 @@
 import { resolve, dirname } from "path";
+import { existsSync } from "fs";
 import { fileURLToPath } from "url";
 import express from "express";
 import cors from "cors";
@@ -36,6 +37,15 @@ app.use(clerkMiddleware());
 app.use("/uploads", express.static(resolve(__dirname, "../uploads")));
 
 app.use("/api", routes);
+
+// Serve React client in production
+const clientDist = resolve(__dirname, "../../client/dist");
+if (existsSync(clientDist)) {
+  app.use(express.static(clientDist));
+  app.get("*", (_req, res) => {
+    res.sendFile(resolve(clientDist, "index.html"));
+  });
+}
 
 app.use(errorHandler);
 

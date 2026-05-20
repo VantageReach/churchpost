@@ -139,22 +139,21 @@ router.post("/", requireOrgRole("ORG_ADMIN", "EDITOR"), async (req, res, next) =
         meta: meta ?? null,
         status: status || "DRAFT",
         scheduledAt: scheduledAt ? new Date(scheduledAt) : null,
-        ...(mediaAssets?.length && {
-          mediaAssets: {
-            create: mediaAssets.map(({ url, filename, size, type }) => ({
-              url,
-              filename,
-              size,
-              type,
-            })),
-          },
-        }),
       },
       include: {
         author: { select: { id: true, name: true, email: true } },
-        mediaAssets: true,
+        mediaAssets: { include: { variants: true } },
       },
     });
+
+    // Link pre-created MediaAsset records (uploaded before post was saved)
+    const assetIds = (mediaAssets ?? []).map((a) => a.id).filter(Boolean);
+    if (assetIds.length) {
+      await prisma.mediaAsset.updateMany({
+        where: { id: { in: assetIds }, postId: null },
+        data: { postId: post.id },
+      });
+    }
 
     res.status(201).json(post);
   } catch (err) {

@@ -5,11 +5,13 @@ import PlatformSelector from "../components/composer/PlatformSelector.jsx";
 import FormatSelector from "../components/composer/FormatSelector.jsx";
 import CaptionEditor from "../components/composer/CaptionEditor.jsx";
 import MediaUpload from "../components/composer/MediaUpload.jsx";
+import FormatPackPanel from "../components/composer/FormatPackPanel.jsx";
+import CropModal from "../components/composer/CropModal.jsx";
 import SchedulePicker from "../components/composer/SchedulePicker.jsx";
 import AiPanel from "../components/composer/AiPanel.jsx";
 import GraphicBuilderModal from "../components/graphicBuilder/GraphicBuilderModal.jsx";
 import { useCreatePost, useUploadMedia, useAiSuggest, usePublishPost } from "../hooks/usePosts.js";
-import { buildDefaultFormats, getDefaultFormat } from "../lib/postFormats.js";
+import { buildDefaultFormats, getDefaultFormat, getFormatConfig } from "../lib/postFormats.js";
 
 const DEFAULT_PLATFORMS = ["facebook", "instagram"];
 
@@ -37,6 +39,8 @@ export default function Compose() {
   const [captions, setCaptions] = useState(initCaptions);
   const [postMeta, setPostMeta] = useState({});
   const [mediaAssets, setMediaAssets] = useState([]);
+  const [cropVariants, setCropVariants] = useState({}); // { "assetId__platform__format": variantUrl }
+  const [cropTarget, setCropTarget] = useState(null);   // { asset, platform, format, ratio }
   const [scheduledAt, setScheduledAt] = useState(prefill?.scheduledAt ?? null);
   const [title, setTitle] = useState("");
   const [aiSuggestions, setAiSuggestions] = useState([]);
@@ -54,15 +58,11 @@ export default function Compose() {
 
   function handlePlatformChange(newPlatforms) {
     setPlatforms(newPlatforms);
-
-    // Remove captions for deselected platforms
     const updatedCaptions = { ...captions };
     Object.keys(updatedCaptions).forEach((p) => {
       if (!newPlatforms.includes(p)) delete updatedCaptions[p];
     });
     setCaptions(updatedCaptions);
-
-    // Sync formats: keep existing selections, add defaults for new platforms
     setFormats((prev) => {
       const updated = {};
       newPlatforms.forEach((p) => {
@@ -97,10 +97,39 @@ export default function Compose() {
 
   function handleRemoveMedia(asset) {
     setMediaAssets((prev) => prev.filter((a) => a.url !== asset.url));
+    // Remove any crop variants for this asset
+    const assetId = asset.id;
+    if (assetId) {
+      setCropVariants((prev) => {
+        const updated = { ...prev };
+        Object.keys(updated).forEach((k) => {
+          if (k.startsWith(assetId)) delete updated[k];
+        });
+        return updated;
+      });
+    }
   }
 
-  function openGraphicBuilder(prefill = null) {
-    setGraphicPrefill(prefill);
+  // Open crop modal — from thumbnail click (no specific target) or from format pack
+  function openCropModal(asset, platform = null, format = null, ratio = null) {
+    const targetPlatform = platform ?? platforms[0];
+    const targetFormat = format ?? formats[targetPlatform];
+    const config = getFormatConfig(targetPlatform, targetFormat);
+    const targetRatio = ratio ?? config?.ratios?.[config.ratios.length - 1] ?? "1:1";
+    setCropTarget({ asset, platform: targetPlatform, format: targetFormat, ratio: targetRatio });
+  }
+
+  function handleCropApply({ platform, format, aspectRatio, variantUrl, cropData }) {
+    const assetId = cropTarget?.asset?.id;
+    if (assetId) {
+      const key = `${assetId}__${platform}__${format}`;
+      setCropVariants((prev) => ({ ...prev, [key]: variantUrl }));
+    }
+    setCropTarget(null);
+  }
+
+  function openGraphicBuilder(pf = null) {
+    setGraphicPrefill(pf);
     setGraphicBuilderOpen(true);
   }
 
@@ -125,14 +154,8 @@ export default function Compose() {
   async function save(status) {
     setError(null);
     const hasCaption = platforms.some((p) => captions[p]?.trim());
-    if (!hasCaption) {
-      setError("Please write a caption for at least one platform.");
-      return;
-    }
-    if (platforms.length === 0) {
-      setError("Please select at least one platform.");
-      return;
-    }
+    if (!hasCaption) { setError("Please write a caption for at least one platform."); return; }
+    if (platforms.length === 0) { setError("Please select at least one platform."); return; }
 
     try {
       await createPost.mutateAsync({
@@ -154,14 +177,8 @@ export default function Compose() {
   async function publishNow() {
     setError(null);
     const hasCaption = platforms.some((p) => captions[p]?.trim());
-    if (!hasCaption) {
-      setError("Please write a caption for at least one platform.");
-      return;
-    }
-    if (platforms.length === 0) {
-      setError("Please select at least one platform.");
-      return;
-    }
+    if (!hasCaption) { setError("Please write a caption for at least one platform."); return; }
+    if (platforms.length === 0) { setError("Please select at least one platform."); return; }
 
     try {
       const post = await createPost.mutateAsync({
@@ -183,6 +200,18 @@ export default function Compose() {
 
   return (
     <>
+    {/* Crop modal */}
+    {cropTarget && (
+      <CropModal
+        asset={cropTarget.asset}
+        platform={cropTarget.platform}
+        format={cropTarget.format}
+        aspectRatio={cropTarget.ratio}
+        onApply={handleCropApply}
+        onClose={() => setCropTarget(null)}
+      />
+    )}
+
     <GraphicBuilderModal
       open={graphicBuilderOpen}
       onClose={() => setGraphicBuilderOpen(false)}
@@ -197,39 +226,25 @@ export default function Compose() {
             <PenSquare className="h-4 w-4 text-gray-500" />
           </div>
           <div>
-            <h1 className="text-[17px] font-semibold text-gray-900 font-display leading-none">
-              New Post
-            </h1>
+            <h1 className="text-[17px] font-semibold text-gray-900 font-display leading-none">New Post</h1>
             <p className="text-[12px] text-gray-400 mt-0.5">Compose and schedule social content</p>
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={() => save("DRAFT")}
-            disabled={isSaving}
-            className="flex items-center gap-2 px-3 lg:px-4 py-2 rounded-xl text-[13px] font-medium text-gray-600 border border-gray-200 bg-white hover:bg-gray-50 hover:border-gray-300 transition-all disabled:opacity-50"
-          >
+          <button type="button" onClick={() => save("DRAFT")} disabled={isSaving}
+            className="flex items-center gap-2 px-3 lg:px-4 py-2 rounded-xl text-[13px] font-medium text-gray-600 border border-gray-200 bg-white hover:bg-gray-50 hover:border-gray-300 transition-all disabled:opacity-50">
             <Save className="h-3.5 w-3.5" />
             <span className="hidden sm:inline">Save Draft</span>
           </button>
-          <button
-            type="button"
-            onClick={() => save("SCHEDULED")}
-            disabled={isSaving || !scheduledAt}
+          <button type="button" onClick={() => save("SCHEDULED")} disabled={isSaving || !scheduledAt}
             title={!scheduledAt ? "Pick a date and time to schedule" : undefined}
             className="flex items-center gap-2 px-3 lg:px-4 py-2 rounded-xl text-[13px] font-medium text-white transition-all hover:opacity-90 disabled:opacity-40 shadow-sm"
-            style={{ background: "var(--brand-primary)" }}
-          >
+            style={{ background: "var(--brand-primary)" }}>
             <Send className="h-3.5 w-3.5" />
             <span className="hidden sm:inline">Schedule</span>
           </button>
-          <button
-            type="button"
-            onClick={publishNow}
-            disabled={isSaving}
-            className="flex items-center gap-2 px-3 lg:px-4 py-2 rounded-xl text-[13px] font-medium text-white transition-all hover:opacity-90 disabled:opacity-50 shadow-sm bg-emerald-600 hover:bg-emerald-700"
-          >
+          <button type="button" onClick={publishNow} disabled={isSaving}
+            className="flex items-center gap-2 px-3 lg:px-4 py-2 rounded-xl text-[13px] font-medium text-white transition-all hover:opacity-90 disabled:opacity-50 shadow-sm bg-emerald-600 hover:bg-emerald-700">
             <Send className="h-3.5 w-3.5" />
             <span className="hidden sm:inline">Publish</span>
           </button>
@@ -245,23 +260,16 @@ export default function Compose() {
             </div>
           )}
 
-          {/* Title */}
           <Section title="Post Title (optional)">
-            <input
-              type="text"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
+            <input type="text" value={title} onChange={(e) => setTitle(e.target.value)}
               placeholder="e.g. Sunday Service — May 18"
-              className="w-full rounded-xl border border-gray-200 px-4 py-2.5 text-[14px] text-gray-800 placeholder-gray-400 outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 transition-all"
-            />
+              className="w-full rounded-xl border border-gray-200 px-4 py-2.5 text-[14px] text-gray-800 placeholder-gray-400 outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 transition-all" />
           </Section>
 
-          {/* Platforms */}
           <Section title="Platforms">
             <PlatformSelector selected={platforms} onChange={handlePlatformChange} />
           </Section>
 
-          {/* Format selector — appears once platforms are selected */}
           {platforms.length > 0 && (
             <Section title="Format">
               <FormatSelector
@@ -273,7 +281,6 @@ export default function Compose() {
             </Section>
           )}
 
-          {/* AI Panel */}
           {platforms.length > 0 && (
             <AiPanel
               platforms={platforms}
@@ -286,7 +293,6 @@ export default function Compose() {
             />
           )}
 
-          {/* Caption */}
           {platforms.length > 0 && (
             <Section title="Caption">
               <CaptionEditor
@@ -300,7 +306,6 @@ export default function Compose() {
             </Section>
           )}
 
-          {/* Media */}
           <Section title="Media">
             <MediaUpload
               assets={mediaAssets}
@@ -308,10 +313,23 @@ export default function Compose() {
               onRemove={handleRemoveMedia}
               isUploading={isUploading}
               onOpenGraphicBuilder={() => openGraphicBuilder()}
+              onCropAsset={(asset) => openCropModal(asset)}
+              cropVariants={cropVariants}
             />
+            {/* Format pack panel — shown when multiple ratios are needed */}
+            {platforms.length > 0 && mediaAssets.length > 0 && (
+              <FormatPackPanel
+                platforms={platforms}
+                formats={formats}
+                assets={mediaAssets}
+                cropVariants={cropVariants}
+                onCropRequest={(asset, platform, format, ratio) =>
+                  openCropModal(asset, platform, format, ratio)
+                }
+              />
+            )}
           </Section>
 
-          {/* Schedule */}
           <Section title="Schedule">
             <SchedulePicker scheduledAt={scheduledAt} onChange={setScheduledAt} />
           </Section>

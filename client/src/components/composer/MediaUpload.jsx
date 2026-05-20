@@ -1,8 +1,8 @@
 import { useDropzone } from "react-dropzone";
-import { Upload, X, Film, Image, PenSquare } from "lucide-react";
+import { Upload, X, Film, Image, PenSquare, Crop, CheckCircle2 } from "lucide-react";
 import { cn } from "../../lib/utils.js";
 
-function MediaThumb({ asset, onRemove }) {
+function MediaThumb({ asset, onRemove, onCrop, isCropped }) {
   const isVideo = asset.type === "VIDEO";
   const src = asset.url.startsWith("/") ? `http://localhost:3001${asset.url}` : asset.url;
 
@@ -16,31 +16,53 @@ function MediaThumb({ asset, onRemove }) {
           </span>
         </div>
       ) : (
-        <img
-          src={src}
-          alt={asset.filename}
-          className="h-full w-full object-cover"
-        />
+        <img src={src} alt={asset.filename} className="h-full w-full object-cover" />
       )}
-      <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-colors duration-150 flex items-center justify-center">
+
+      {/* Hover overlay with actions */}
+      <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-colors duration-150 flex items-center justify-center gap-2">
+        {/* Crop button (images only) */}
+        {!isVideo && onCrop && (
+          <button
+            type="button"
+            onClick={(e) => { e.stopPropagation(); onCrop(asset); }}
+            className="opacity-0 group-hover:opacity-100 transition-opacity p-1.5 rounded-full bg-white/90 text-gray-700 hover:bg-white hover:text-indigo-600"
+            title="Crop"
+          >
+            <Crop className="h-3.5 w-3.5" />
+          </button>
+        )}
+        {/* Remove button */}
         <button
           type="button"
           onClick={() => onRemove(asset)}
-          className="opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded-full bg-black/60 text-white hover:bg-black/80"
+          className="opacity-0 group-hover:opacity-100 transition-opacity p-1.5 rounded-full bg-black/60 text-white hover:bg-black/80"
+          title="Remove"
         >
           <X className="h-3.5 w-3.5" />
         </button>
       </div>
+
+      {/* Type badge */}
       <div className="absolute bottom-1 left-1">
         <span className="text-[9px] font-bold uppercase px-1.5 py-0.5 rounded bg-black/50 text-white/80">
           {isVideo ? "VID" : "IMG"}
         </span>
       </div>
+
+      {/* Cropped badge */}
+      {isCropped && !isVideo && (
+        <div className="absolute top-1 right-1">
+          <span className="flex items-center gap-0.5 text-[9px] font-bold px-1.5 py-0.5 rounded bg-emerald-500 text-white">
+            <CheckCircle2 className="h-2.5 w-2.5" />
+          </span>
+        </div>
+      )}
     </div>
   );
 }
 
-export default function MediaUpload({ assets, onAdd, onRemove, isUploading, onOpenGraphicBuilder }) {
+export default function MediaUpload({ assets, onAdd, onRemove, isUploading, onOpenGraphicBuilder, onCropAsset, cropVariants = {} }) {
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     accept: {
       "image/jpeg": [],
@@ -60,7 +82,6 @@ export default function MediaUpload({ assets, onAdd, onRemove, isUploading, onOp
       {/* Action row: upload + build graphic */}
       {assets.length < 10 && (
         <div className="flex gap-2">
-          {/* Drop zone */}
           <div
             {...getRootProps()}
             className={cn(
@@ -94,17 +115,14 @@ export default function MediaUpload({ assets, onAdd, onRemove, isUploading, onOp
             onClick={onOpenGraphicBuilder}
             className="flex flex-col items-center justify-center gap-2 w-40 rounded-xl border-2 border-dashed border-gray-200 bg-gray-50/50 hover:border-indigo-300 hover:bg-indigo-50/30 transition-all duration-150 px-4 py-6 group"
           >
-            <div
-              className="h-9 w-9 rounded-xl flex items-center justify-center transition-colors"
-              style={{ background: "var(--brand-primary, #6366f1)18" }}
-            >
-              <PenSquare className="h-4 w-4 group-hover:text-indigo-600 text-gray-400 transition-colors" style={{ color: "var(--brand-primary, #6366f1)" }} />
+            <div className="h-9 w-9 rounded-xl flex items-center justify-center"
+              style={{ background: "var(--brand-primary, #6366f1)18" }}>
+              <PenSquare className="h-4 w-4 group-hover:text-indigo-600 text-gray-400 transition-colors"
+                style={{ color: "var(--brand-primary, #6366f1)" }} />
             </div>
             <div className="text-center">
               <p className="text-[12px] font-medium text-gray-700 group-hover:text-indigo-700 transition-colors">Build Graphic</p>
-              <p className="text-[10px] text-gray-400 mt-0.5">
-                Canvas editor
-              </p>
+              <p className="text-[10px] text-gray-400 mt-0.5">Canvas editor</p>
             </div>
           </button>
         </div>
@@ -113,9 +131,18 @@ export default function MediaUpload({ assets, onAdd, onRemove, isUploading, onOp
       {/* Thumbnail grid */}
       {assets.length > 0 && (
         <div className="grid grid-cols-4 gap-2">
-          {assets.map((asset, i) => (
-            <MediaThumb key={asset.url ?? i} asset={asset} onRemove={onRemove} />
-          ))}
+          {assets.map((asset, i) => {
+            const hasCrop = Object.keys(cropVariants).some((k) => k.startsWith(asset.id ?? ""));
+            return (
+              <MediaThumb
+                key={asset.url ?? i}
+                asset={asset}
+                onRemove={onRemove}
+                onCrop={onCropAsset}
+                isCropped={hasCrop}
+              />
+            );
+          })}
         </div>
       )}
     </div>

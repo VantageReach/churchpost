@@ -5,6 +5,37 @@ import { useProactiveSuggestions } from "../../hooks/useDashboardStats.js";
 import { useQueryClient } from "@tanstack/react-query";
 import PlatformBadge from "../shared/PlatformBadge.jsx";
 import GraphicBuilderModal from "../graphicBuilder/GraphicBuilderModal.jsx";
+import { useOrgSettings } from "../../hooks/useOrgSettings.js";
+
+const DEMO_SUGGESTIONS = [
+  {
+    eventEmoji: "🙏",
+    eventLabel: "Sunday Service",
+    daysUntil: 2,
+    topic: "Invite your community to this Sunday's service",
+    caption: "Join us this Sunday as we continue our series on finding peace in uncertainty. Whether you're a regular or visiting for the first time — there's a seat for you. Service starts at 10am. 🙏",
+    platforms: ["facebook", "instagram"],
+    hashtags: ["Church", "Sunday", "Community"],
+  },
+  {
+    eventEmoji: "🏕️",
+    eventLabel: "Youth Camp Registration",
+    daysUntil: 7,
+    topic: "Promote youth camp registration deadline",
+    caption: "⏰ Last week to register for Youth Camp 2026! July 14–18 for students ages 12–18. This is always a summer highlight — worship, community, and memories that last a lifetime. Register at the link in bio!",
+    platforms: ["facebook", "instagram", "twitter"],
+    hashtags: ["YouthCamp", "Summer2026", "Students"],
+  },
+  {
+    eventEmoji: "🌿",
+    eventLabel: "Small Groups",
+    daysUntil: 14,
+    topic: "Encourage sign-ups for summer small groups",
+    caption: "Summer Small Groups kick off June 1st! We have groups for every stage of life — young adults, families, couples, and seniors. Find your people this summer. Sign up at the welcome table or online. 🌿",
+    platforms: ["facebook", "instagram"],
+    hashtags: ["SmallGroups", "Community", "Summer"],
+  },
+];
 
 function DaysChip({ daysUntil }) {
   const urgent = daysUntil <= 3;
@@ -78,9 +109,12 @@ function SuggestionCard({ s, onUse, onBuildGraphic }) {
 
 export default function ProactiveSuggestionsWidget() {
   const { data, isLoading, isError } = useProactiveSuggestions();
+  const settings = useOrgSettings();
   const qc = useQueryClient();
   const navigate = useNavigate();
   const [graphicPrefill, setGraphicPrefill] = useState(null);
+
+  const isDemo = settings?.isDemo;
 
   function refresh() {
     qc.invalidateQueries({ queryKey: ["proactiveSuggestions"] });
@@ -135,7 +169,13 @@ export default function ProactiveSuggestionsWidget() {
       </div>
 
       <div className="p-4">
-        {isLoading ? (
+        {isDemo ? (
+          <div className="space-y-2">
+            {DEMO_SUGGESTIONS.map((s, i) => (
+              <SuggestionCard key={i} s={s} onUse={useInComposer} onBuildGraphic={buildGraphic} />
+            ))}
+          </div>
+        ) : isLoading ? (
           <div className="flex flex-col items-center py-10 gap-3">
             <div className="h-6 w-6 rounded-full border-2 border-gray-200 border-t-indigo-500 animate-spin" />
             <p className="text-[12px] text-gray-400">Generating ideas based on upcoming events…</p>

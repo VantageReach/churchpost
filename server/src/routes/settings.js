@@ -1,24 +1,14 @@
 import { Router } from "express";
 import multer from "multer";
-import { resolve, dirname, extname } from "path";
-import { fileURLToPath } from "url";
-import { mkdirSync } from "fs";
+import { extname } from "path";
+import { randomBytes } from "crypto";
 import { requireOrgRole } from "../middleware/auth.js";
+import { uploadToR2 } from "../lib/r2.js";
 import prisma from "../lib/prisma.js";
 
-const __dirname = dirname(fileURLToPath(import.meta.url));
-const UPLOADS_DIR = resolve(__dirname, "../../uploads");
-mkdirSync(UPLOADS_DIR, { recursive: true });
-
 const logoUpload = multer({
-  storage: multer.diskStorage({
-    destination: (_req, _file, cb) => cb(null, UPLOADS_DIR),
-    filename: (_req, file, cb) => {
-      const unique = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
-      cb(null, `logo-${unique}${extname(file.originalname)}`);
-    },
-  }),
-  limits: { fileSize: 5 * 1024 * 1024 }, // 5 MB for logos
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 5 * 1024 * 1024 },
   fileFilter: (_req, file, cb) => {
     cb(null, /image\/(jpeg|png|gif|webp|svg\+xml)/.test(file.mimetype));
   },
@@ -119,7 +109,9 @@ router.post(
       }
 
       const urlField = { icon: "logoIconUrl", full: "logoFullUrl", dark: "logoDarkUrl" }[type];
-      const url = `/uploads/${req.file.filename}`;
+      const ext = extname(req.file.originalname) || ".png";
+      const key = `logos/${req.org.id}/${type}-${randomBytes(8).toString("hex")}${ext}`;
+      const url = await uploadToR2(req.file.buffer, key, req.file.mimetype);
 
       const settings = await prisma.orgSettings.update({
         where: { organizationId: req.org.id },

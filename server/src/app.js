@@ -13,7 +13,23 @@ import errorHandler from "./middleware/errorHandler.js";
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const app = express();
 
-app.use(helmet());
+app.use(
+  helmet({
+    contentSecurityPolicy: {
+      directives: {
+        defaultSrc: ["'self'"],
+        scriptSrc: ["'self'", "'unsafe-inline'", "https://*.clerk.accounts.dev", "https://cdn.jsdelivr.net"],
+        scriptSrcElem: ["'self'", "'unsafe-inline'", "https://*.clerk.accounts.dev", "https://cdn.jsdelivr.net"],
+        connectSrc: ["'self'", "https://*.clerk.accounts.dev", "https://api.clerk.dev"],
+        imgSrc: ["'self'", "data:", "https:", "blob:"],
+        styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
+        fontSrc: ["'self'", "https://fonts.gstatic.com", "data:"],
+        frameSrc: ["'self'", "https://*.clerk.accounts.dev"],
+        workerSrc: ["'self'", "blob:"],
+      },
+    },
+  })
+);
 app.use(
   cors({
     origin: process.env.CLIENT_URL || "http://localhost:5173",

@@ -5,7 +5,7 @@ import {
   X, Undo2, Redo2, Download, RotateCcw, Plus, Trash2,
   AlignLeft, AlignCenter, AlignRight, Sparkles,
   Image as ImageIcon, Palette, Type, Monitor, ChevronLeft,
-  Search, Loader2,
+  Search, Loader2, Square, Circle, Triangle, Minus,
 } from "lucide-react";
 import { useOrgSettings } from "../../hooks/useOrgSettings.js";
 import { PLATFORM_SIZES, TEMPLATE_META, FONT_OPTIONS, GRADIENT_DIRECTIONS } from "./constants.js";
@@ -41,8 +41,16 @@ function iconUrl(prefix, name, color = "#ffffff") {
   return `https://api.iconify.design/${prefix}/${name}.svg?color=${encoded}&width=80&height=80`;
 }
 
+function isLightColor(hex) {
+  if (!hex || hex.length < 7) return true;
+  const r = parseInt(hex.slice(1, 3), 16);
+  const g = parseInt(hex.slice(3, 5), 16);
+  const b = parseInt(hex.slice(5, 7), 16);
+  return (r * 299 + g * 587 + b * 114) / 1000 > 180;
+}
+
 // ── Color swatch + popover ─────────────────────────────────────────────────
-function ColorSwatch({ color, onChange, label }) {
+function ColorSwatch({ color, onChange, label, opacity, onOpacityChange }) {
   const [open, setOpen] = useState(false);
   const ref = useRef(null);
 
@@ -62,7 +70,7 @@ function ColorSwatch({ color, onChange, label }) {
         title={color}
       />
       {open && (
-        <div className="absolute z-50 top-10 left-0 bg-white rounded-xl shadow-xl p-3 border border-gray-100">
+        <div className="absolute z-50 top-10 left-0 bg-white rounded-xl shadow-xl p-3 border border-gray-100 min-w-[200px]">
           <HexColorPicker color={color} onChange={onChange} />
           <input
             type="text"
@@ -70,6 +78,20 @@ function ColorSwatch({ color, onChange, label }) {
             onChange={(e) => onChange(e.target.value)}
             className="w-full mt-2 text-[11px] border border-gray-200 rounded-lg px-2 py-1 font-mono"
           />
+          {onOpacityChange !== undefined && (
+            <div className="mt-2 pt-2 border-t border-gray-100">
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-[10px] text-gray-400">Opacity</span>
+                <span className="text-[10px] font-semibold text-gray-600">{Math.round((opacity ?? 1) * 100)}%</span>
+              </div>
+              <input
+                type="range" min={0} max={100}
+                value={Math.round((opacity ?? 1) * 100)}
+                onChange={(e) => onOpacityChange(+e.target.value / 100)}
+                className="w-full accent-indigo-500"
+              />
+            </div>
+          )}
         </div>
       )}
     </div>
@@ -304,19 +326,19 @@ function AssetsPanel({ iconColor, setIconColor, onAddIcon, onAddImageFile }) {
           {displayIcons.map((icon) => {
             const [prefix, name] = icon.split(":");
             const curated = CURATED_ICONS.find((c) => `${c.prefix}:${c.name}` === icon);
+            const btnBg = isLightColor(iconColor) ? "#374151" : "#f9fafb";
             return (
               <button
                 key={icon}
                 onClick={() => onAddIcon(prefix, name)}
                 title={curated?.label ?? name}
-                className="aspect-square rounded-lg border border-gray-100 bg-gray-50 hover:border-indigo-300 hover:bg-indigo-50 transition-all flex items-center justify-center p-1.5 group"
+                className="aspect-square rounded-lg border border-gray-200 hover:border-indigo-300 transition-all flex items-center justify-center p-1.5"
+                style={{ background: btnBg }}
               >
                 <img
                   src={`https://api.iconify.design/${prefix}/${name}.svg?color=%23${iconColor.replace("#", "")}&width=32&height=32`}
                   alt={name}
                   className="w-6 h-6 object-contain"
-                  crossOrigin="anonymous"
-                  style={{ filter: iconColor === "#ffffff" ? "invert(0)" : undefined }}
                 />
               </button>
             );
@@ -347,6 +369,7 @@ function TextControls({ obj, canvas, brandColors, onAiSuggest, onDelete, onBack 
   const [fontWeight, setFontWeight] = useState(obj?.fontWeight ?? "normal");
   const [align, setAlign] = useState(obj?.textAlign ?? "center");
   const [color, setColor] = useState(typeof obj?.fill === "string" ? obj.fill : "#ffffff");
+  const [opacity, setOpacity] = useState(obj?.opacity ?? 1);
   const [shadow, setShadow] = useState(!!obj?.shadow);
 
   useEffect(() => {
@@ -357,6 +380,7 @@ function TextControls({ obj, canvas, brandColors, onAiSuggest, onDelete, onBack 
     setFontWeight(obj.fontWeight ?? "normal");
     setAlign(obj.textAlign ?? "center");
     setColor(typeof obj.fill === "string" ? obj.fill : "#ffffff");
+    setOpacity(obj.opacity ?? 1);
     setShadow(!!obj.shadow);
   }, [obj]);
 
@@ -432,7 +456,12 @@ function TextControls({ obj, canvas, brandColors, onAiSuggest, onDelete, onBack 
       <div>
         <SectionHead label="Color" />
         <div className="flex items-center gap-3">
-          <ColorSwatch color={color} onChange={(c) => { setColor(c); update({ fill: c }); }} />
+          <ColorSwatch
+            color={color}
+            onChange={(c) => { setColor(c); update({ fill: c }); }}
+            opacity={opacity}
+            onOpacityChange={(v) => { setOpacity(v); update({ opacity: v }); }}
+          />
           <BrandSwatches colors={brandColors} onSelect={(c) => { setColor(c); update({ fill: c }); }} />
         </div>
       </div>
@@ -482,6 +511,103 @@ function CanvasImageControls({ obj, canvas, onDelete, onBack }) {
           className="w-full accent-indigo-500"
         />
       </div>
+
+      <div>
+        <p className="text-[11px] text-gray-400 mb-2">Arrange</p>
+        <div className="flex gap-1.5">
+          <button onClick={() => { canvas?.bringToFront(obj); canvas?.renderAll(); }} className="flex-1 py-1.5 rounded-lg bg-gray-100 text-[11px] text-gray-600 hover:bg-gray-200 transition-colors">Front</button>
+          <button onClick={() => { canvas?.sendToBack(obj); canvas?.renderAll(); }} className="flex-1 py-1.5 rounded-lg bg-gray-100 text-[11px] text-gray-600 hover:bg-gray-200 transition-colors">Back</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Shape controls ─────────────────────────────────────────────────────────
+function ShapeControls({ obj, canvas, brandColors, onDelete, onBack }) {
+  const [color, setColor] = useState(typeof obj?.fill === "string" && obj?.fill ? obj.fill : "#6366f1");
+  const [opacity, setOpacity] = useState(obj?.opacity ?? 1);
+  const [strokeColor, setStrokeColor] = useState(obj?.stroke && obj.stroke !== "transparent" ? obj.stroke : "#000000");
+  const [strokeWidth, setStrokeWidth] = useState(obj?.strokeWidth ?? 0);
+
+  useEffect(() => {
+    if (!obj) return;
+    setColor(typeof obj.fill === "string" && obj.fill ? obj.fill : "#6366f1");
+    setOpacity(obj.opacity ?? 1);
+    setStrokeColor(obj.stroke && obj.stroke !== "transparent" ? obj.stroke : "#000000");
+    setStrokeWidth(obj.strokeWidth ?? 0);
+  }, [obj]);
+
+  function update(props) {
+    if (!obj || !canvas) return;
+    obj.set(props);
+    canvas.renderAll();
+  }
+
+  const isLine = obj?.type === "line";
+
+  return (
+    <div className="space-y-4">
+      <BackButton onBack={onBack} />
+      <div className="flex items-center justify-between">
+        <SectionHead label={obj?.name ?? "Shape"} />
+        <button onClick={onDelete} className="p-1 rounded text-gray-300 hover:text-red-500 transition-colors">
+          <Trash2 className="h-3.5 w-3.5" />
+        </button>
+      </div>
+
+      {!isLine && (
+        <div>
+          <SectionHead label="Fill" />
+          <div className="flex items-center gap-3">
+            <ColorSwatch
+              color={color}
+              onChange={(c) => { setColor(c); update({ fill: c }); }}
+              opacity={opacity}
+              onOpacityChange={(v) => { setOpacity(v); update({ opacity: v }); }}
+            />
+            <BrandSwatches colors={brandColors} onSelect={(c) => { setColor(c); update({ fill: c }); }} />
+          </div>
+        </div>
+      )}
+
+      <div>
+        <SectionHead label={isLine ? "Color" : "Stroke"} />
+        <div className="flex items-center gap-3">
+          <ColorSwatch
+            color={isLine ? (typeof obj?.stroke === "string" ? obj.stroke : "#6366f1") : strokeColor}
+            onChange={(c) => {
+              if (isLine) { update({ stroke: c }); }
+              else { setStrokeColor(c); if (strokeWidth > 0) update({ stroke: c }); }
+            }}
+          />
+          {!isLine && (
+            <div className="flex-1">
+              <p className="text-[11px] text-gray-400 mb-1">Width: {strokeWidth}px</p>
+              <input type="range" min={0} max={20} value={strokeWidth}
+                onChange={(e) => { const w = +e.target.value; setStrokeWidth(w); update({ strokeWidth: w, stroke: w === 0 ? "transparent" : strokeColor }); }}
+                className="w-full accent-indigo-500" />
+            </div>
+          )}
+          {isLine && (
+            <div className="flex-1">
+              <p className="text-[11px] text-gray-400 mb-1">Width: {obj?.strokeWidth ?? 4}px</p>
+              <input type="range" min={1} max={20} defaultValue={obj?.strokeWidth ?? 4}
+                onChange={(e) => update({ strokeWidth: +e.target.value })}
+                className="w-full accent-indigo-500" />
+            </div>
+          )}
+        </div>
+      </div>
+
+      {obj?.type === "rect" && (
+        <div>
+          <SectionHead label="Corner radius" />
+          <input type="range" min={0} max={50} defaultValue={obj?.rx ?? 8}
+            onChange={(e) => { const r = +e.target.value; update({ rx: r, ry: r }); }}
+            className="w-full accent-indigo-500" />
+        </div>
+      )}
 
       <div>
         <p className="text-[11px] text-gray-400 mb-2">Arrange</p>
@@ -552,6 +678,8 @@ export default function GraphicBuilderModal({ open, onClose, onExport, prefill }
   const [canRedo, setCanRedo] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [mobilePanel, setMobilePanel] = useState("templates");
+  const [showShapeMenu, setShowShapeMenu] = useState(false);
+  const shapeMenuRef = useRef(null);
 
   const canvasElRef = useRef(null);
   const fabricRef = useRef(null);
@@ -696,6 +824,33 @@ export default function GraphicBuilderModal({ open, onClose, onExport, prefill }
     canvas.renderAll();
   }
 
+  function addShape(type) {
+    const canvas = fabricRef.current;
+    if (!canvas) return;
+    const cx = canvas.getWidth() / 2;
+    const cy = canvas.getHeight() / 2;
+    const fill = brandRef.current?.primaryColor ?? "#6366f1";
+    const base = { fill, opacity: 1, id: `shape-${Date.now()}`, customType: "shape" };
+    let obj;
+    if (type === "rect") {
+      obj = new fabric.Rect({ ...base, left: cx - 50, top: cy - 50, width: 100, height: 100, rx: 8, ry: 8, name: "Rectangle" });
+    } else if (type === "circle") {
+      obj = new fabric.Circle({ ...base, left: cx - 50, top: cy - 50, radius: 50, name: "Circle" });
+    } else if (type === "triangle") {
+      obj = new fabric.Triangle({ ...base, left: cx - 50, top: cy - 50, width: 100, height: 100, name: "Triangle" });
+    } else if (type === "line") {
+      obj = new fabric.Line([cx - 60, cy, cx + 60, cy], { stroke: fill, strokeWidth: 4, fill: "", id: `shape-${Date.now()}`, customType: "shape", name: "Line" });
+    }
+    if (obj) {
+      canvas.add(obj);
+      canvas.setActiveObject(obj);
+      setSelectedObj(obj);
+      canvas.renderAll();
+      saveHistory();
+    }
+    setShowShapeMenu(false);
+  }
+
   function addImageToCanvas(file) {
     const canvas = fabricRef.current;
     if (!canvas) return;
@@ -775,6 +930,7 @@ export default function GraphicBuilderModal({ open, onClose, onExport, prefill }
   const isTextSelected = selectedObj?.customType === "text";
   const isLogoSelected = selectedObj?.customType === "logo";
   const isImageSelected = selectedObj?.customType === "canvasImage";
+  const isShapeSelected = selectedObj?.customType === "shape";
   const currentSize = PLATFORM_SIZES[sizeKey];
 
   // Controls panel content (shared between desktop right panel and mobile drawer)
@@ -782,6 +938,7 @@ export default function GraphicBuilderModal({ open, onClose, onExport, prefill }
     if (isTextSelected) return <TextControls obj={selectedObj} canvas={fabricRef.current} brandColors={brandColors} onAiSuggest={handleAiSuggest} onDelete={deleteSelected} onBack={deselect} />;
     if (isLogoSelected) return <LogoControls obj={selectedObj} canvas={fabricRef.current} settings={settings} onBack={deselect} />;
     if (isImageSelected) return <CanvasImageControls obj={selectedObj} canvas={fabricRef.current} onDelete={deleteSelected} onBack={deselect} />;
+    if (isShapeSelected) return <ShapeControls obj={selectedObj} canvas={fabricRef.current} brandColors={brandColors} onDelete={deleteSelected} onBack={deselect} />;
     return (
       <>
         <BackgroundControls bgType={bgType} setBgType={setBgType} bgSolid={bgSolid} setBgSolid={setBgSolid} bgGradient={bgGradient} setBgGradient={setBgGradient} brandColors={brandColors} onApplyBg={applyBg} onPhotoUpload={handlePhotoUpload} />
@@ -863,6 +1020,31 @@ export default function GraphicBuilderModal({ open, onClose, onExport, prefill }
               <ImageIcon className="h-3.5 w-3.5" />
               Add image
             </button>
+            <div className="relative" ref={shapeMenuRef}>
+              <button
+                onClick={() => setShowShapeMenu((v) => !v)}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12px] font-medium text-gray-600 bg-white border border-gray-200 hover:border-violet-300 hover:text-violet-600 transition-colors shadow-sm">
+                <Square className="h-3.5 w-3.5" />
+                Add shape
+              </button>
+              {showShapeMenu && (
+                <div className="absolute bottom-full mb-2 left-0 bg-white rounded-xl border border-gray-200 shadow-xl p-2 flex gap-1.5 z-50">
+                  {[
+                    { type: "rect", Icon: Square, label: "Rect" },
+                    { type: "circle", Icon: Circle, label: "Circle" },
+                    { type: "triangle", Icon: Triangle, label: "Triangle" },
+                    { type: "line", Icon: Minus, label: "Line" },
+                  ].map(({ type, Icon, label }) => (
+                    <button key={type} onClick={() => addShape(type)}
+                      className="flex flex-col items-center gap-1 px-3 py-2 rounded-lg text-gray-600 hover:bg-violet-50 hover:text-violet-600 transition-colors"
+                      title={label}>
+                      <Icon className="h-4 w-4" />
+                      <span className="text-[10px] font-medium">{label}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
             <input ref={imageFileRef} type="file" accept="image/*" className="hidden" onChange={(e) => { if (e.target.files[0]) addImageToCanvas(e.target.files[0]); }} />
           </div>
         </div>
@@ -872,9 +1054,9 @@ export default function GraphicBuilderModal({ open, onClose, onExport, prefill }
           <div className="p-4">
             {/* Context label */}
             <div className="flex items-center gap-2 mb-3">
-              {isTextSelected ? <Type className="h-3.5 w-3.5 text-indigo-500" /> : isImageSelected ? <ImageIcon className="h-3.5 w-3.5 text-emerald-500" /> : isLogoSelected ? <ImageIcon className="h-3.5 w-3.5 text-amber-500" /> : <Palette className="h-3.5 w-3.5 text-gray-400" />}
+              {isTextSelected ? <Type className="h-3.5 w-3.5 text-indigo-500" /> : isImageSelected ? <ImageIcon className="h-3.5 w-3.5 text-emerald-500" /> : isLogoSelected ? <ImageIcon className="h-3.5 w-3.5 text-amber-500" /> : isShapeSelected ? <Square className="h-3.5 w-3.5 text-violet-500" /> : <Palette className="h-3.5 w-3.5 text-gray-400" />}
               <p className="text-[11px] font-bold text-gray-500">
-                {isTextSelected ? "Text Controls" : isImageSelected ? "Image Controls" : isLogoSelected ? "Logo Controls" : "Background & Assets"}
+                {isTextSelected ? "Text Controls" : isImageSelected ? "Image Controls" : isLogoSelected ? "Logo Controls" : isShapeSelected ? "Shape Controls" : "Background & Assets"}
               </p>
             </div>
             <ControlsContent />
@@ -888,7 +1070,7 @@ export default function GraphicBuilderModal({ open, onClose, onExport, prefill }
           {["templates", "controls"].map((p) => (
             <button key={p} onClick={() => setMobilePanel(p)}
               className={cn("flex-1 py-2.5 text-[12px] font-semibold capitalize transition-colors", mobilePanel === p ? "text-gray-900 border-b-2 border-indigo-500" : "text-gray-400")}>
-              {p === "controls" && (isTextSelected || isImageSelected || isLogoSelected) ? "✏️ Controls" : p}
+              {p === "controls" && (isTextSelected || isImageSelected || isLogoSelected || isShapeSelected) ? "✏️ Controls" : p}
             </button>
           ))}
         </div>

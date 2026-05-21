@@ -523,6 +523,64 @@ function CanvasImageControls({ obj, canvas, onDelete, onBack }) {
   );
 }
 
+// ── Icon controls ──────────────────────────────────────────────────────────
+function IconControls({ obj, canvas, brandColors, onDelete, onBack }) {
+  const [color, setColor] = useState(obj?.iconColor ?? "#ffffff");
+  const [opacity, setOpacity] = useState(obj?.opacity ?? 1);
+
+  useEffect(() => {
+    if (!obj) return;
+    setColor(obj.iconColor ?? "#ffffff");
+    setOpacity(obj.opacity ?? 1);
+  }, [obj]);
+
+  function recolor(newColor) {
+    if (!obj || !canvas) return;
+    const prefix = obj.iconPrefix;
+    const name = obj.iconName;
+    if (!prefix || !name) return;
+    const url = `https://api.iconify.design/${prefix}/${name}.svg?color=${encodeURIComponent(newColor)}&width=80&height=80`;
+    obj.setSrc(url, () => {
+      obj.set({ iconColor: newColor });
+      canvas.renderAll();
+      setColor(newColor);
+    }, { crossOrigin: "anonymous" });
+  }
+
+  return (
+    <div className="space-y-4">
+      <BackButton onBack={onBack} />
+      <div className="flex items-center justify-between">
+        <SectionHead label={obj?.name ?? "Icon"} />
+        <button onClick={onDelete} className="p-1 rounded text-gray-300 hover:text-red-500 transition-colors">
+          <Trash2 className="h-3.5 w-3.5" />
+        </button>
+      </div>
+
+      <div>
+        <SectionHead label="Color" />
+        <div className="flex items-center gap-3">
+          <ColorSwatch
+            color={color}
+            onChange={recolor}
+            opacity={opacity}
+            onOpacityChange={(v) => { setOpacity(v); obj?.set({ opacity: v }); canvas?.renderAll(); }}
+          />
+          <BrandSwatches colors={brandColors} onSelect={recolor} />
+        </div>
+      </div>
+
+      <div>
+        <p className="text-[11px] text-gray-400 mb-2">Arrange</p>
+        <div className="flex gap-1.5">
+          <button onClick={() => { canvas?.bringToFront(obj); canvas?.renderAll(); }} className="flex-1 py-1.5 rounded-lg bg-gray-100 text-[11px] text-gray-600 hover:bg-gray-200 transition-colors">Front</button>
+          <button onClick={() => { canvas?.sendToBack(obj); canvas?.renderAll(); }} className="flex-1 py-1.5 rounded-lg bg-gray-100 text-[11px] text-gray-600 hover:bg-gray-200 transition-colors">Back</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ── Shape controls ─────────────────────────────────────────────────────────
 function ShapeControls({ obj, canvas, brandColors, onDelete, onBack }) {
   const [color, setColor] = useState(typeof obj?.fill === "string" && obj?.fill ? obj.fill : "#6366f1");
@@ -741,7 +799,7 @@ export default function GraphicBuilderModal({ open, onClose, onExport, prefill }
   function saveHistory() {
     const canvas = fabricRef.current;
     if (!canvas) return;
-    const state = JSON.stringify(canvas.toJSON(["id", "customType", "name"]));
+    const state = JSON.stringify(canvas.toJSON(["id", "customType", "name", "iconPrefix", "iconName", "iconColor"]));
     const h = historyRef.current;
     h.states = [...h.states.slice(0, h.index + 1), state];
     h.index = h.states.length - 1;
@@ -887,7 +945,16 @@ export default function GraphicBuilderModal({ open, onClose, onExport, prefill }
     fabric.Image.fromURL(url, (img) => {
       if (!img) return;
       img.scaleToWidth(80);
-      img.set({ left: canvas.getWidth() / 2 - 40, top: canvas.getHeight() / 2 - 40, id: `icon-${Date.now()}`, customType: "canvasImage", name: `Icon: ${name}` });
+      img.set({
+        left: canvas.getWidth() / 2 - 40,
+        top: canvas.getHeight() / 2 - 40,
+        id: `icon-${Date.now()}`,
+        customType: "icon",
+        name: `Icon: ${name}`,
+        iconPrefix: prefix,
+        iconName: name,
+        iconColor,
+      });
       canvas.add(img);
       canvas.setActiveObject(img);
       setSelectedObj(img);
@@ -944,6 +1011,7 @@ export default function GraphicBuilderModal({ open, onClose, onExport, prefill }
   const isLogoSelected = selectedObj?.customType === "logo";
   const isImageSelected = selectedObj?.customType === "canvasImage";
   const isShapeSelected = selectedObj?.customType === "shape";
+  const isIconSelected = selectedObj?.customType === "icon";
   const currentSize = PLATFORM_SIZES[sizeKey];
 
   // Controls panel content (shared between desktop right panel and mobile drawer)
@@ -952,6 +1020,7 @@ export default function GraphicBuilderModal({ open, onClose, onExport, prefill }
     if (isLogoSelected) return <LogoControls obj={selectedObj} canvas={fabricRef.current} settings={settings} onBack={deselect} />;
     if (isImageSelected) return <CanvasImageControls obj={selectedObj} canvas={fabricRef.current} onDelete={deleteSelected} onBack={deselect} />;
     if (isShapeSelected) return <ShapeControls obj={selectedObj} canvas={fabricRef.current} brandColors={brandColors} onDelete={deleteSelected} onBack={deselect} />;
+    if (isIconSelected) return <IconControls obj={selectedObj} canvas={fabricRef.current} brandColors={brandColors} onDelete={deleteSelected} onBack={deselect} />;
     return (
       <>
         <BackgroundControls bgType={bgType} setBgType={setBgType} bgSolid={bgSolid} setBgSolid={setBgSolid} bgGradient={bgGradient} setBgGradient={setBgGradient} brandColors={brandColors} onApplyBg={applyBg} onPhotoUpload={handlePhotoUpload} />
@@ -1067,9 +1136,9 @@ export default function GraphicBuilderModal({ open, onClose, onExport, prefill }
           <div className="p-4">
             {/* Context label */}
             <div className="flex items-center gap-2 mb-3">
-              {isTextSelected ? <Type className="h-3.5 w-3.5 text-indigo-500" /> : isImageSelected ? <ImageIcon className="h-3.5 w-3.5 text-emerald-500" /> : isLogoSelected ? <ImageIcon className="h-3.5 w-3.5 text-amber-500" /> : isShapeSelected ? <Square className="h-3.5 w-3.5 text-violet-500" /> : <Palette className="h-3.5 w-3.5 text-gray-400" />}
+              {isTextSelected ? <Type className="h-3.5 w-3.5 text-indigo-500" /> : isImageSelected ? <ImageIcon className="h-3.5 w-3.5 text-emerald-500" /> : isLogoSelected ? <ImageIcon className="h-3.5 w-3.5 text-amber-500" /> : isShapeSelected ? <Square className="h-3.5 w-3.5 text-violet-500" /> : isIconSelected ? <Sparkles className="h-3.5 w-3.5 text-rose-400" /> : <Palette className="h-3.5 w-3.5 text-gray-400" />}
               <p className="text-[11px] font-bold text-gray-500">
-                {isTextSelected ? "Text Controls" : isImageSelected ? "Image Controls" : isLogoSelected ? "Logo Controls" : isShapeSelected ? "Shape Controls" : "Background & Assets"}
+                {isTextSelected ? "Text Controls" : isImageSelected ? "Image Controls" : isLogoSelected ? "Logo Controls" : isShapeSelected ? "Shape Controls" : isIconSelected ? "Icon Controls" : "Background & Assets"}
               </p>
             </div>
             <ControlsContent />

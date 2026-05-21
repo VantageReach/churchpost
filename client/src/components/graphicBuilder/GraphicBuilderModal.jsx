@@ -714,6 +714,19 @@ export default function GraphicBuilderModal({ open, onClose, onExport, prefill }
     canvas.on("object:modified", saveHistory);
     canvas.on("object:added", saveHistory);
 
+    function handleKeyDown(e) {
+      if (e.key !== "Delete" && e.key !== "Backspace") return;
+      const tag = document.activeElement?.tagName;
+      if (tag === "INPUT" || tag === "TEXTAREA" || document.activeElement?.isContentEditable) return;
+      const active = fabricRef.current?.getActiveObject();
+      if (!active) return;
+      fabricRef.current.remove(active);
+      fabricRef.current.renderAll();
+      setSelectedObj(null);
+      saveHistory();
+    }
+    window.addEventListener("keydown", handleKeyDown);
+
     applyTemplate(templateKey, brandRef.current, canvas, size);
     if (prefill?.text) {
       setTimeout(() => {
@@ -722,7 +735,7 @@ export default function GraphicBuilderModal({ open, onClose, onExport, prefill }
       }, 100);
     }
     saveHistory();
-    return () => { canvas.dispose(); fabricRef.current = null; };
+    return () => { canvas.dispose(); fabricRef.current = null; window.removeEventListener("keydown", handleKeyDown); };
   }, [open]); // eslint-disable-line
 
   function saveHistory() {

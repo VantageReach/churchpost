@@ -20,7 +20,7 @@ app.use(
         defaultSrc: ["'self'"],
         scriptSrc: ["'self'", "'unsafe-inline'", "https://*.clerk.accounts.dev", "https://cdn.jsdelivr.net"],
         scriptSrcElem: ["'self'", "'unsafe-inline'", "https://*.clerk.accounts.dev", "https://cdn.jsdelivr.net"],
-        connectSrc: ["'self'", "https://*.clerk.accounts.dev", "https://api.clerk.dev"],
+        connectSrc: ["'self'", "https://*.clerk.accounts.dev", "https://api.clerk.dev", "https://api.iconify.design"],
         imgSrc: ["'self'", "data:", "https:", "blob:"],
         styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
         fontSrc: ["'self'", "https://fonts.gstatic.com", "data:"],

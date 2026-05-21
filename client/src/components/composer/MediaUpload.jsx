@@ -92,50 +92,58 @@ export default function MediaUpload({ assets, onAdd, onRemove, isUploading, onOp
     <div className="space-y-3">
       {/* Action row: upload + build graphic */}
       {assets.length < 10 && (
-        <div className="flex gap-2">
-          <div
-            {...getRootProps()}
-            className={cn(
-              "flex-1 flex flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed px-4 py-6 cursor-pointer transition-all duration-150",
-              isDragActive
-                ? "border-indigo-400 bg-indigo-50"
-                : "border-gray-200 bg-gray-50/50 hover:border-gray-300 hover:bg-gray-50"
-            )}
-          >
-            <input {...getInputProps()} />
-            <div className="h-9 w-9 rounded-xl bg-gray-100 flex items-center justify-center">
-              {isUploading ? (
-                <div className="h-4 w-4 rounded-full border-2 border-gray-300 border-t-indigo-500 animate-spin" />
-              ) : (
-                <Upload className="h-4 w-4 text-gray-400" />
+        <div className="grid grid-cols-2 gap-3">
+          {/* Upload */}
+          <div className="space-y-1.5">
+            <p className="text-[10px] font-semibold uppercase tracking-[0.08em] text-gray-400">Have a photo or video?</p>
+            <div
+              {...getRootProps()}
+              className={cn(
+                "flex flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed px-4 py-6 cursor-pointer transition-all duration-150",
+                isDragActive
+                  ? "border-indigo-400 bg-indigo-50"
+                  : "border-gray-200 bg-gray-50/50 hover:border-gray-300 hover:bg-gray-50"
               )}
-            </div>
-            <div className="text-center">
-              <p className="text-[12px] font-medium text-gray-600">
-                {isDragActive ? "Drop files here" : "Upload from device"}
-              </p>
-              <p className="text-[10px] text-gray-400 mt-0.5">
-                Images, video · {10 - assets.length} remaining
-              </p>
+            >
+              <input {...getInputProps()} />
+              <div className="h-9 w-9 rounded-xl bg-gray-100 flex items-center justify-center">
+                {isUploading ? (
+                  <div className="h-4 w-4 rounded-full border-2 border-gray-300 border-t-indigo-500 animate-spin" />
+                ) : (
+                  <Upload className="h-4 w-4 text-gray-400" />
+                )}
+              </div>
+              <div className="text-center">
+                <p className="text-[12px] font-semibold text-gray-600">
+                  {isDragActive ? "Drop files here" : "Upload from device"}
+                </p>
+                <p className="text-[10px] text-gray-400 mt-0.5">
+                  Images, video · {10 - assets.length} remaining
+                </p>
+              </div>
             </div>
           </div>
 
-          {/* Build graphic button */}
-          <button
-            type="button"
-            onClick={onOpenGraphicBuilder}
-            className="flex flex-col items-center justify-center gap-2 w-40 rounded-xl border-2 border-dashed border-gray-200 bg-gray-50/50 hover:border-indigo-300 hover:bg-indigo-50/30 transition-all duration-150 px-4 py-6 group"
-          >
-            <div className="h-9 w-9 rounded-xl flex items-center justify-center"
-              style={{ background: "var(--brand-primary, #6366f1)18" }}>
-              <PenSquare className="h-4 w-4 group-hover:text-indigo-600 text-gray-400 transition-colors"
-                style={{ color: "var(--brand-primary, #6366f1)" }} />
-            </div>
-            <div className="text-center">
-              <p className="text-[12px] font-medium text-gray-700 group-hover:text-indigo-700 transition-colors">Build Graphic</p>
-              <p className="text-[10px] text-gray-400 mt-0.5">Canvas editor</p>
-            </div>
-          </button>
+          {/* Build graphic */}
+          <div className="space-y-1.5">
+            <p className="text-[10px] font-semibold uppercase tracking-[0.08em]" style={{ color: "var(--brand-primary, #6366f1)" }}>Need to make a graphic?</p>
+            <button
+              type="button"
+              onClick={onOpenGraphicBuilder}
+              className="w-full flex flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed px-4 py-6 transition-all duration-150 group"
+              style={{ borderColor: "var(--brand-primary, #6366f1)40", background: "var(--brand-primary, #6366f1)08" }}
+              onMouseEnter={(e) => { e.currentTarget.style.background = "var(--brand-primary, #6366f1)14"; }}
+              onMouseLeave={(e) => { e.currentTarget.style.background = "var(--brand-primary, #6366f1)08"; }}
+            >
+              <div className="h-9 w-9 rounded-xl flex items-center justify-center" style={{ background: "var(--brand-primary, #6366f1)18" }}>
+                <PenSquare className="h-4 w-4 transition-colors" style={{ color: "var(--brand-primary, #6366f1)" }} />
+              </div>
+              <div className="text-center">
+                <p className="text-[12px] font-semibold transition-colors" style={{ color: "var(--brand-primary, #6366f1)" }}>Build a Graphic</p>
+                <p className="text-[10px] text-gray-400 mt-0.5">Canvas editor · templates included</p>
+              </div>
+            </button>
+          </div>
         </div>
       )}
 

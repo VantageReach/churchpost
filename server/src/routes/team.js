@@ -20,7 +20,22 @@ router.get("/", async (req, res, next) => {
     const active = members.filter((m) => !m.clerkId.startsWith("pending:"));
     const pending = members.filter((m) => m.clerkId.startsWith("pending:"));
 
-    res.json({ members: active, pending });
+    // Enrich active members with live Clerk data (real name + email)
+    const clerk = getClerk();
+    const enriched = await Promise.all(
+      active.map(async (m) => {
+        try {
+          const u = await clerk.users.getUser(m.clerkId);
+          const name = [u.firstName, u.lastName].filter(Boolean).join(" ") || u.username || m.name;
+          const email = u.emailAddresses?.[0]?.emailAddress || m.email;
+          return { ...m, name, email };
+        } catch {
+          return m;
+        }
+      })
+    );
+
+    res.json({ members: enriched, pending });
   } catch (err) {
     next(err);
   }

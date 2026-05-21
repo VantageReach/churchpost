@@ -153,14 +153,9 @@ export default function AccountPanel() {
           </div>
           <div className="pt-2 border-t border-gray-100">
             <p className="text-[11px] text-gray-400">
-              To update your name or email, visit your{" "}
-              <a
-                href="https://accounts.clerk.dev/user"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-indigo-500 hover:underline"
-              >
-                Clerk account settings
+              To update your name, email, or password, go to{" "}
+              <a href="/settings/profile" className="text-indigo-500 hover:underline">
+                Profile settings
               </a>
               .
             </p>

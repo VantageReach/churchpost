@@ -49,6 +49,7 @@ router.get("/", async (req, res, next) => {
       orgName: org.name,
       orgSlug: org.slug,
       orgPlan: org.plan,
+      isDemo: org.isDemo,
     });
   } catch (err) {
     next(err);

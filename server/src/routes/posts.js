@@ -127,6 +127,9 @@ router.post("/", requireOrgRole("ORG_ADMIN", "EDITOR"), async (req, res, next) =
     if (!captions || !platforms?.length) {
       return res.status(400).json({ error: "captions and platforms are required" });
     }
+    if (req.org.isDemo && status === "SCHEDULED") {
+      return res.status(403).json({ error: "Scheduling is disabled in demo mode." });
+    }
 
     const post = await prisma.post.create({
       data: {
@@ -226,6 +229,8 @@ router.delete("/:id", requireOrgRole("ORG_ADMIN", "EDITOR"), async (req, res, ne
 // POST /api/posts/:id/publish — publish immediately
 router.post("/:id/publish", requireOrgRole("ORG_ADMIN", "EDITOR"), async (req, res, next) => {
   try {
+    if (req.org.isDemo) return res.status(403).json({ error: "Publishing is disabled in demo mode." });
+
     const post = await prisma.post.findFirst({
       where: { id: req.params.id, organizationId: req.org.id },
     });

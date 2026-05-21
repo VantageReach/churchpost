@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Outlet } from "react-router-dom";
-import { Menu, Sparkles } from "lucide-react";
+import { Menu, Sparkles, FlaskConical } from "lucide-react";
 import Sidebar from "./Sidebar.jsx";
 import { useOrgSettings } from "../../hooks/useOrgSettings.js";
 
@@ -44,6 +44,21 @@ export default function Layout() {
             <span className="text-[15px] font-semibold text-gray-900 font-display">ChurchPost</span>
           </div>
         </div>
+
+        {settings?.isDemo && (
+          <div className="flex items-center justify-center gap-2 px-4 py-2 bg-amber-50 border-b border-amber-200 flex-shrink-0">
+            <FlaskConical className="h-3.5 w-3.5 text-amber-600 flex-shrink-0" />
+            <p className="text-[12px] text-amber-800 font-medium">
+              You're in demo mode — posts, scheduling, and platform connections are view-only.{" "}
+              <a
+                href="https://churchpost.social"
+                className="underline underline-offset-2 hover:text-amber-900 transition-colors"
+              >
+                Sign up free to get started
+              </a>
+            </p>
+          </div>
+        )}
 
         <main className="flex-1 overflow-y-auto">
           <Outlet />

@@ -27,6 +27,7 @@ router.get("/", async (req, res, next) => {
       orgName: req.org.name,
       orgSlug: req.org.slug,
       orgPlan: req.org.plan,
+      isDemo: req.org.isDemo,
     });
   } catch (err) {
     next(err);

@@ -78,7 +78,7 @@ function LogoUploadZone({ label, type, currentUrl, onUpload, isUploading }) {
   });
 
   const src = currentUrl?.startsWith("/")
-    ? `http://localhost:3001${currentUrl}`
+    ? (import.meta.env.DEV ? `http://localhost:3001${currentUrl}` : currentUrl)
     : currentUrl;
 
   return (

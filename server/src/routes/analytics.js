@@ -7,7 +7,7 @@ const router = Router();
 // GET /api/analytics/overview
 // Summary stats: total published, total reach/impressions/engagement across all posts
 router.get("/overview", async (req, res) => {
-  const { organizationId } = req.org;
+  const organizationId = req.org.id;
   const { days = "30" } = req.query;
   const since = new Date();
   since.setDate(since.getDate() - parseInt(days, 10));
@@ -74,7 +74,7 @@ router.get("/overview", async (req, res) => {
 // GET /api/analytics/posts
 // Per-post metrics for posts published in the window, most recent snapshot
 router.get("/posts", async (req, res) => {
-  const { organizationId } = req.org;
+  const organizationId = req.org.id;
   const { days = "30", platform, limit = "50", offset = "0" } = req.query;
   const since = new Date();
   since.setDate(since.getDate() - parseInt(days, 10));
@@ -120,7 +120,7 @@ router.get("/posts", async (req, res) => {
 // GET /api/analytics/posts/:postId
 // Full time-series metrics for a single post (all snapshots)
 router.get("/posts/:postId", async (req, res) => {
-  const { organizationId } = req.org;
+  const organizationId = req.org.id;
   const { postId } = req.params;
 
   const post = await prisma.post.findFirst({
@@ -149,7 +149,7 @@ router.get("/posts/:postId", async (req, res) => {
 // GET /api/analytics/account
 // Account-level follower / impression time-series per platform
 router.get("/account", async (req, res) => {
-  const { organizationId } = req.org;
+  const organizationId = req.org.id;
   const { days = "90", platform } = req.query;
   const since = new Date();
   since.setDate(since.getDate() - parseInt(days, 10));
@@ -169,7 +169,7 @@ router.get("/account", async (req, res) => {
 // POST /api/analytics/sync
 // Trigger a full analytics refresh for this org
 router.post("/sync", async (req, res) => {
-  const { organizationId } = req.org;
+  const organizationId = req.org.id;
 
   if (req.org.isDemo) {
     return res.status(403).json({ error: "Analytics sync is disabled in demo mode." });

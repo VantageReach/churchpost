@@ -12,6 +12,12 @@ import {
   Send,
   ExternalLink,
   Pencil,
+  Heart,
+  MessageCircle,
+  Share2,
+  Eye,
+  Play,
+  Bookmark,
 } from "lucide-react";
 
 const PLATFORM_ICONS = {
@@ -77,6 +83,51 @@ function StatusBadge({ status }) {
   );
 }
 
+function fmtNum(n) {
+  if (n == null || n === 0) return null;
+  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
+  if (n >= 1_000) return `${(n / 1_000).toFixed(1)}K`;
+  return String(n);
+}
+
+function InlineMetrics({ postMetrics }) {
+  if (!postMetrics?.length) return null;
+
+  // Aggregate across all platforms (most recent snapshot per platform)
+  const seen = new Set();
+  const latest = [];
+  for (const m of postMetrics) {
+    if (!seen.has(m.platform)) { seen.add(m.platform); latest.push(m); }
+  }
+
+  const total = (key) => {
+    const s = latest.reduce((acc, m) => acc + (m[key] || 0), 0);
+    return s > 0 ? s : null;
+  };
+
+  const stats = [
+    { icon: Eye, value: total("impressions"), label: "Impressions" },
+    { icon: Heart, value: total("likes"), label: "Likes" },
+    { icon: MessageCircle, value: total("comments"), label: "Comments" },
+    { icon: Share2, value: total("shares"), label: "Shares" },
+    { icon: Bookmark, value: total("saves"), label: "Saves" },
+    { icon: Play, value: total("videoViews"), label: "Views" },
+  ].filter((s) => s.value != null);
+
+  if (stats.length === 0) return null;
+
+  return (
+    <div className="flex items-center gap-3 mt-2 flex-wrap">
+      {stats.map(({ icon: Icon, value, label }) => (
+        <span key={label} className="flex items-center gap-1 text-[11px] text-gray-400" title={label}>
+          <Icon className="h-3 w-3 text-gray-300" />
+          <span className="font-medium text-gray-500">{fmtNum(value)}</span>
+        </span>
+      ))}
+    </div>
+  );
+}
+
 function PostRow({ post, onDelete, onPublish, onEdit }) {
   const firstCaption = Object.values(post.captions ?? {})[0] ?? "";
   const scheduledLabel = post.scheduledAt
@@ -139,6 +190,9 @@ function PostRow({ post, onDelete, onPublish, onEdit }) {
             </span>
           )}
         </div>
+        {post.status === "PUBLISHED" && (
+          <InlineMetrics postMetrics={post.postMetrics} />
+        )}
         {post.status === "PUBLISHED" && (post.platformResults ?? []).length > 0 && (
           <div className="flex items-center gap-2 mt-1.5 flex-wrap">
             {post.platformResults.filter((r) => r.status === "published").map((r) => {

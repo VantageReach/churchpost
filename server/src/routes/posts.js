@@ -23,6 +23,10 @@ router.get("/", async (req, res, next) => {
           author: { select: { id: true, name: true, email: true } },
           mediaAssets: true,
           platformResults: true,
+          postMetrics: {
+            orderBy: { snapshotDate: "desc" },
+            take: 4,
+          },
         },
         orderBy: [
           { scheduledAt: "asc" },

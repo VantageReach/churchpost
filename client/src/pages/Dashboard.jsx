@@ -175,7 +175,7 @@ export default function Dashboard() {
 
         {/* Stat cards */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-4">
-          {STAT_CARDS.map(({ label, value, icon, iconColor, iconBg }, i) => (
+          {STAT_CARDS.map(({ label, value, icon, iconColor, iconBg, to }, i) => (
             <StatCard
               key={label}
               label={label}
@@ -185,6 +185,7 @@ export default function Dashboard() {
               iconBg={iconBg}
               loading={isLoading}
               delay={i * 60}
+              to={to}
             />
           ))}
         </div>

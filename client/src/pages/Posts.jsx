@@ -34,7 +34,9 @@ function buildFallbackUrl(platform, externalId) {
         const idx = externalId.indexOf("_");
         return `https://www.facebook.com/${externalId.slice(0, idx)}/posts/${externalId.slice(idx + 1)}`;
       }
-      return null;
+      return `https://www.facebook.com/photo/?fbid=${externalId}`;
+    case "instagram":
+      return null; // permalink stored from API on new posts; can't construct from media ID
     case "youtube":
       return `https://www.youtube.com/watch?v=${externalId}`;
     case "twitter":

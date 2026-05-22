@@ -12,7 +12,7 @@ function fbPermalink(externalId, pageId) {
     const postId = externalId.slice(idx + 1);
     return `https://www.facebook.com/${pid}/posts/${postId}`;
   }
-  return `https://www.facebook.com/${pageId}`;
+  return `https://www.facebook.com/photo/?fbid=${externalId}`;
 }
 
 async function igPermalink(mediaId, token) {

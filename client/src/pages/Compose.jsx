@@ -11,7 +11,7 @@ import VideoProcessModal from "../components/composer/VideoProcessModal.jsx";
 import SchedulePicker from "../components/composer/SchedulePicker.jsx";
 import AiPanel from "../components/composer/AiPanel.jsx";
 import GraphicBuilderModal from "../components/graphicBuilder/GraphicBuilderModal.jsx";
-import { useCreatePost, useUploadMedia, useAiSuggest, usePublishPost } from "../hooks/usePosts.js";
+import { useCreatePost, useUpdatePost, useUploadMedia, useAiSuggest, usePublishPost } from "../hooks/usePosts.js";
 import { buildDefaultFormats, getDefaultFormat, getFormatConfig } from "../lib/postFormats.js";
 
 const DEFAULT_PLATFORMS = ["facebook", "instagram"];
@@ -29,21 +29,25 @@ export default function Compose() {
   const navigate = useNavigate();
   const location = useLocation();
   const prefill = location.state?.prefill;
+  const editPost = location.state?.editPost ?? null;
+  const isEditing = !!editPost;
 
-  const initPlatforms = prefill?.platforms ?? DEFAULT_PLATFORMS;
-  const initCaptions = prefill?.caption
-    ? Object.fromEntries(initPlatforms.map((p) => [p, prefill.caption]))
-    : {};
+  const initPlatforms = editPost?.platforms ?? prefill?.platforms ?? DEFAULT_PLATFORMS;
+  const initCaptions = editPost?.captions
+    ?? (prefill?.caption ? Object.fromEntries(initPlatforms.map((p) => [p, prefill.caption])) : {});
+  const initFormats = editPost?.formats ?? buildDefaultFormats(initPlatforms);
 
   const [platforms, setPlatforms] = useState(initPlatforms);
-  const [formats, setFormats] = useState(() => buildDefaultFormats(initPlatforms));
+  const [formats, setFormats] = useState(initFormats);
   const [captions, setCaptions] = useState(initCaptions);
-  const [postMeta, setPostMeta] = useState({});
-  const [mediaAssets, setMediaAssets] = useState([]);
-  const [cropVariants, setCropVariants] = useState({}); // { "assetId__platform__format": variantUrl }
-  const [cropTarget, setCropTarget] = useState(null);   // { asset, platform, format, ratio }
-  const [scheduledAt, setScheduledAt] = useState(prefill?.scheduledAt ?? null);
-  const [title, setTitle] = useState("");
+  const [postMeta, setPostMeta] = useState(editPost?.meta ?? {});
+  const [mediaAssets, setMediaAssets] = useState(editPost?.mediaAssets ?? []);
+  const [cropVariants, setCropVariants] = useState({});
+  const [cropTarget, setCropTarget] = useState(null);
+  const [scheduledAt, setScheduledAt] = useState(
+    editPost?.scheduledAt ? new Date(editPost.scheduledAt) : prefill?.scheduledAt ?? null
+  );
+  const [title, setTitle] = useState(editPost?.title ?? "");
   const [aiSuggestions, setAiSuggestions] = useState([]);
   const [error, setError] = useState(null);
   const [graphicBuilderOpen, setGraphicBuilderOpen] = useState(false);
@@ -51,11 +55,12 @@ export default function Compose() {
   const [videoTarget, setVideoTarget] = useState(null); // { asset, platform, format, ratio }
 
   const createPost = useCreatePost();
+  const updatePost = useUpdatePost();
   const uploadMedia = useUploadMedia();
   const aiSuggest = useAiSuggest();
   const publishPost = usePublishPost();
 
-  const isSaving = createPost.isPending || publishPost.isPending;
+  const isSaving = createPost.isPending || updatePost.isPending || publishPost.isPending;
   const isUploading = uploadMedia.isPending;
 
   function handlePlatformChange(newPlatforms) {
@@ -176,17 +181,23 @@ export default function Compose() {
     if (!hasCaption) { setError("Please write a caption for at least one platform."); return; }
     if (platforms.length === 0) { setError("Please select at least one platform."); return; }
 
+    const payload = {
+      title: title || null,
+      captions,
+      platforms,
+      formats,
+      meta: Object.keys(postMeta).length ? postMeta : null,
+      status,
+      scheduledAt: status === "SCHEDULED" ? scheduledAt : null,
+      mediaAssets,
+    };
+
     try {
-      await createPost.mutateAsync({
-        title: title || null,
-        captions,
-        platforms,
-        formats,
-        meta: Object.keys(postMeta).length ? postMeta : null,
-        status,
-        scheduledAt: status === "SCHEDULED" ? scheduledAt : null,
-        mediaAssets,
-      });
+      if (isEditing) {
+        await updatePost.mutateAsync({ id: editPost.id, ...payload });
+      } else {
+        await createPost.mutateAsync(payload);
+      }
       navigate("/posts");
     } catch (err) {
       setError(err?.response?.data?.error || "Failed to save post.");
@@ -257,8 +268,8 @@ export default function Compose() {
             <PenSquare className="h-4 w-4 text-gray-500" />
           </div>
           <div>
-            <h1 className="text-[17px] font-semibold text-gray-900 font-display leading-none">New Post</h1>
-            <p className="text-[12px] text-gray-400 mt-0.5">Compose and schedule social content</p>
+            <h1 className="text-[17px] font-semibold text-gray-900 font-display leading-none">{isEditing ? "Edit Post" : "New Post"}</h1>
+            <p className="text-[12px] text-gray-400 mt-0.5">{isEditing ? "Update your draft or scheduled post" : "Compose and schedule social content"}</p>
           </div>
         </div>
         <div className="flex items-center gap-2">

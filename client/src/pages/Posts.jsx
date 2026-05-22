@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import {
   FileText,
   PenSquare,
@@ -11,6 +11,7 @@ import {
   Image,
   Send,
   ExternalLink,
+  Pencil,
 } from "lucide-react";
 
 const PLATFORM_ICONS = {
@@ -74,7 +75,7 @@ function StatusBadge({ status }) {
   );
 }
 
-function PostRow({ post, onDelete, onPublish }) {
+function PostRow({ post, onDelete, onPublish, onEdit }) {
   const firstCaption = Object.values(post.captions ?? {})[0] ?? "";
   const scheduledLabel = post.scheduledAt
     ? new Date(post.scheduledAt).toLocaleString("en-US", {
@@ -159,6 +160,15 @@ function PostRow({ post, onDelete, onPublish }) {
         <span className="text-[11px] text-gray-400 mr-2">
           {post.author?.name}
         </span>
+        {(post.status === "DRAFT" || post.status === "SCHEDULED") && (
+          <button
+            onClick={() => onEdit(post)}
+            className="p-1.5 rounded-lg text-gray-300 hover:text-amber-600 hover:bg-amber-50 transition-colors"
+            title="Edit post"
+          >
+            <Pencil className="h-3.5 w-3.5" />
+          </button>
+        )}
         {(post.status === "DRAFT" || post.status === "SCHEDULED" || post.status === "FAILED") && (
           <button
             onClick={() => onPublish(post.id)}
@@ -199,6 +209,7 @@ function FilterChip({ label, active, onClick }) {
 }
 
 export default function Posts() {
+  const navigate = useNavigate();
   const [statusFilter, setStatusFilter] = useState("All");
   const [platformFilter, setPlatformFilter] = useState("All");
 
@@ -217,6 +228,10 @@ export default function Posts() {
 
   function handlePublish(id) {
     publishPost.mutate(id);
+  }
+
+  function handleEdit(post) {
+    navigate("/compose", { state: { editPost: post } });
   }
 
   const posts = data?.posts ?? [];
@@ -304,7 +319,7 @@ export default function Posts() {
         ) : (
           <div className="bg-white rounded-2xl m-3 lg:m-6 overflow-hidden border border-gray-100 shadow-sm">
             {posts.map((post) => (
-              <PostRow key={post.id} post={post} onDelete={handleDelete} onPublish={handlePublish} />
+              <PostRow key={post.id} post={post} onDelete={handleDelete} onPublish={handlePublish} onEdit={handleEdit} />
             ))}
           </div>
         )}

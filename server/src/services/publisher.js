@@ -4,6 +4,28 @@ import { decrypt, encrypt } from "../lib/encryption.js";
 
 const FB = "https://graph.facebook.com/v19.0";
 
+function fbPermalink(externalId, pageId) {
+  if (!externalId) return null;
+  if (externalId.includes("_")) {
+    const idx = externalId.indexOf("_");
+    const pid = externalId.slice(0, idx);
+    const postId = externalId.slice(idx + 1);
+    return `https://www.facebook.com/${pid}/posts/${postId}`;
+  }
+  return `https://www.facebook.com/${pageId}`;
+}
+
+async function igPermalink(mediaId, token) {
+  try {
+    const res = await axios.get(`${FB}/${mediaId}`, {
+      params: { fields: "permalink", access_token: token },
+    });
+    return res.data.permalink ?? null;
+  } catch {
+    return null;
+  }
+}
+
 function mediaUrl(assetUrl) {
   const base = process.env.API_URL || "http://localhost:3001";
   return assetUrl.startsWith("http") ? assetUrl : `${base}${assetUrl}`;
@@ -89,19 +111,19 @@ async function publishFacebook(post, account) {
         access_token: token,
       },
     });
-    return { externalId: res.data.id };
+    return { externalId: res.data.id, permalink: fbPermalink(res.data.id, pageId) };
   }
   if (images.length === 0) {
     const res = await axios.post(`${FB}/${pageId}/feed`, null, {
       params: { message: caption, access_token: token },
     });
-    return { externalId: res.data.id };
+    return { externalId: res.data.id, permalink: fbPermalink(res.data.id, pageId) };
   }
   if (images.length === 1) {
     const res = await axios.post(`${FB}/${pageId}/photos`, null, {
       params: { url: getBestUrl(images[0], "facebook", format), caption, access_token: token },
     });
-    return { externalId: res.data.id };
+    return { externalId: res.data.id, permalink: fbPermalink(res.data.id, pageId) };
   }
   const photoIds = await Promise.all(
     images.map(async (img) => {
@@ -118,7 +140,7 @@ async function publishFacebook(post, account) {
       access_token: token,
     },
   });
-  return { externalId: res.data.id };
+  return { externalId: res.data.id, permalink: fbPermalink(res.data.id, pageId) };
 }
 
 // ── Instagram ─────────────────────────────────────────────────────────────────
@@ -175,7 +197,8 @@ async function publishInstagram(post, account) {
     const publishRes = await axios.post(`${FB}/${igId}/media_publish`, null, {
       params: { creation_id: res.data.id, access_token: token },
     });
-    return { externalId: publishRes.data.id };
+    const mediaId = publishRes.data.id;
+    return { externalId: mediaId, permalink: await igPermalink(mediaId, token) };
   }
 
   // ── Carousel ──
@@ -204,7 +227,8 @@ async function publishInstagram(post, account) {
     const publishRes = await axios.post(`${FB}/${igId}/media_publish`, null, {
       params: { creation_id: carRes.data.id, access_token: token },
     });
-    return { externalId: publishRes.data.id };
+    const mediaId = publishRes.data.id;
+    return { externalId: mediaId, permalink: await igPermalink(mediaId, token) };
   }
 
   // ── Feed Post (default) ──
@@ -218,7 +242,8 @@ async function publishInstagram(post, account) {
     const publishRes = await axios.post(`${FB}/${igId}/media_publish`, null, {
       params: { creation_id: res.data.id, access_token: token },
     });
-    return { externalId: publishRes.data.id };
+    const mediaId = publishRes.data.id;
+    return { externalId: mediaId, permalink: await igPermalink(mediaId, token) };
   }
   // Multi-image carousel (auto)
   const itemIds = await Promise.all(
@@ -235,7 +260,8 @@ async function publishInstagram(post, account) {
   const publishRes = await axios.post(`${FB}/${igId}/media_publish`, null, {
     params: { creation_id: carRes.data.id, access_token: token },
   });
-  return { externalId: publishRes.data.id };
+  const mediaId = publishRes.data.id;
+  return { externalId: mediaId, permalink: await igPermalink(mediaId, token) };
 }
 
 // ── Google token refresh ──────────────────────────────────────────────────────
@@ -316,7 +342,8 @@ async function publishYouTube(post, account) {
     maxBodyLength: Infinity,
   });
 
-  return { externalId: uploadRes.data.id };
+  const videoId = uploadRes.data.id;
+  return { externalId: videoId, permalink: videoId ? `https://www.youtube.com/watch?v=${videoId}` : null };
 }
 
 // ── TikTok token refresh ──────────────────────────────────────────────────────
@@ -447,7 +474,7 @@ export async function publishPost(postId) {
       else if (platform === "tiktok") result = await publishTikTok(post, account);
       else throw new Error(`Publisher not implemented for ${platform}`);
 
-      platformResults.push({ platform, status: "published", externalId: result.externalId, publishedAt: new Date() });
+      platformResults.push({ platform, status: "published", externalId: result.externalId, permalink: result.permalink ?? null, publishedAt: new Date() });
       successCount++;
     } catch (err) {
       const error = err?.response?.data?.error?.message || err.message;
@@ -471,6 +498,7 @@ export async function publishPost(postId) {
           platform: r.platform,
           status: r.status,
           externalId: r.externalId ?? null,
+          permalink: r.permalink ?? null,
           error: r.error ?? null,
           publishedAt: r.publishedAt ?? null,
         },

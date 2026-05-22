@@ -141,6 +141,7 @@ model PlatformResult {
   platform    String
   status      String
   externalId  String?
+  permalink   String?
   error       String?
   publishedAt DateTime?
 }

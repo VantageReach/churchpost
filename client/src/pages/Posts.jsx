@@ -8,10 +8,40 @@ import {
   CheckCircle,
   AlertCircle,
   FileEdit,
-  ChevronDown,
   Image,
   Send,
+  ExternalLink,
 } from "lucide-react";
+
+const PLATFORM_ICONS = {
+  facebook: "🇫",
+  instagram: "📸",
+  youtube: "▶️",
+  tiktok: "🎵",
+  twitter: "𝕏",
+};
+
+function platformDisplayName(platform) {
+  return { facebook: "Facebook", instagram: "Instagram", youtube: "YouTube", tiktok: "TikTok", twitter: "X" }[platform] ?? platform;
+}
+
+function buildFallbackUrl(platform, externalId) {
+  if (!externalId) return null;
+  switch (platform) {
+    case "facebook":
+      if (externalId.includes("_")) {
+        const idx = externalId.indexOf("_");
+        return `https://www.facebook.com/${externalId.slice(0, idx)}/posts/${externalId.slice(idx + 1)}`;
+      }
+      return null;
+    case "youtube":
+      return `https://www.youtube.com/watch?v=${externalId}`;
+    case "twitter":
+      return `https://x.com/i/web/status/${externalId}`;
+    default:
+      return null;
+  }
+}
 import PlatformBadge from "../components/shared/PlatformBadge.jsx";
 import { usePosts, useDeletePost, usePublishPost } from "../hooks/usePosts.js";
 import { cn } from "../lib/utils.js";
@@ -101,6 +131,27 @@ function PostRow({ post, onDelete, onPublish }) {
             </span>
           )}
         </div>
+        {post.status === "PUBLISHED" && (post.platformResults ?? []).length > 0 && (
+          <div className="flex items-center gap-2 mt-1.5 flex-wrap">
+            {post.platformResults.filter((r) => r.status === "published").map((r) => {
+              const url = r.permalink ?? buildFallbackUrl(r.platform, r.externalId);
+              if (!url) return null;
+              return (
+                <a
+                  key={r.platform}
+                  href={url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={(e) => e.stopPropagation()}
+                  className="flex items-center gap-1 text-[10px] font-medium text-gray-400 hover:text-indigo-600 transition-colors"
+                >
+                  <ExternalLink className="h-2.5 w-2.5" />
+                  View on {platformDisplayName(r.platform)}
+                </a>
+              );
+            })}
+          </div>
+        )}
       </div>
 
       {/* Actions */}

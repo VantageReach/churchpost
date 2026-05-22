@@ -8,15 +8,16 @@ import UpcomingPostsWidget from "../components/dashboard/UpcomingPostsWidget.jsx
 import PCEventsWidget from "../components/dashboard/PCEventsWidget.jsx";
 import { useQueryClient } from "@tanstack/react-query";
 
-function StatCard({ label, value, icon: Icon, iconColor, iconBg, loading, delay }) {
+function StatCard({ label, value, icon: Icon, iconColor, iconBg, loading, delay, to }) {
   return (
-    <div
-      className="rounded-2xl bg-white p-4 lg:p-5 border border-gray-100 shadow-sm animate-fade-in"
+    <Link
+      to={to}
+      className="rounded-2xl bg-white p-4 lg:p-5 border border-gray-100 shadow-sm animate-fade-in hover:shadow-md hover:border-gray-200 transition-all duration-150 group"
       style={{ animationDelay: `${delay}ms` }}
     >
       <div className="flex items-start justify-between mb-3 lg:mb-4">
         <div
-          className="flex h-8 w-8 lg:h-9 lg:w-9 items-center justify-center rounded-xl flex-shrink-0"
+          className="flex h-8 w-8 lg:h-9 lg:w-9 items-center justify-center rounded-xl flex-shrink-0 transition-transform duration-150 group-hover:scale-110"
           style={{ background: iconBg }}
         >
           <Icon className="h-3.5 w-3.5 lg:h-4 lg:w-4" style={{ color: iconColor }} />
@@ -30,7 +31,7 @@ function StatCard({ label, value, icon: Icon, iconColor, iconBg, loading, delay 
         )}
       </p>
       <p className="text-[11px] font-medium text-gray-400 uppercase tracking-wide leading-tight">{label}</p>
-    </div>
+    </Link>
   );
 }
 
@@ -77,6 +78,7 @@ export default function Dashboard() {
       icon: Send,
       iconColor: "#10b981",
       iconBg: "#ecfdf5",
+      to: "/posts?status=PUBLISHED",
     },
     {
       label: "Scheduled",
@@ -84,6 +86,7 @@ export default function Dashboard() {
       icon: CalendarDays,
       iconColor: "#6366f1",
       iconBg: "#eef2ff",
+      to: "/posts?status=SCHEDULED",
     },
     {
       label: "Drafts",
@@ -91,6 +94,7 @@ export default function Dashboard() {
       icon: FileText,
       iconColor: "#f59e0b",
       iconBg: "#fffbeb",
+      to: "/posts?status=DRAFT",
     },
     {
       label: "Failed",
@@ -98,6 +102,7 @@ export default function Dashboard() {
       icon: AlertCircle,
       iconColor: "#ef4444",
       iconBg: "#fef2f2",
+      to: "/posts?status=FAILED",
     },
   ];
 

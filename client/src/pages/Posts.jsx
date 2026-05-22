@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import {
   FileText,
   PenSquare,
@@ -122,6 +122,11 @@ function PostRow({ post, onDelete, onPublish, onEdit }) {
           )}
         </div>
         <p className="text-[13px] text-gray-500 truncate leading-snug">{firstCaption}</p>
+        {(post.status === "FAILED" || post.status === "PARTIAL") && post.failureReason && (
+          <p className="text-[11px] text-red-500 mt-0.5 truncate">
+            ⚠ {post.failureReason}
+          </p>
+        )}
         <div className="flex items-center gap-1.5 mt-2 flex-wrap">
           {(post.platforms ?? []).map((p) => (
             <PlatformBadge key={p} platform={p} size="sm" />
@@ -210,7 +215,9 @@ function FilterChip({ label, active, onClick }) {
 
 export default function Posts() {
   const navigate = useNavigate();
-  const [statusFilter, setStatusFilter] = useState("All");
+  const [searchParams] = useSearchParams();
+  const initialStatus = searchParams.get("status") ?? "All";
+  const [statusFilter, setStatusFilter] = useState(STATUS_FILTERS.includes(initialStatus) ? initialStatus : "All");
   const [platformFilter, setPlatformFilter] = useState("All");
 
   const filters = {};

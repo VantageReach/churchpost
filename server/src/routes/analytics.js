@@ -176,8 +176,8 @@ router.post("/sync", async (req, res) => {
   }
 
   try {
-    await syncOrgAnalytics(organizationId);
-    res.json({ synced: true });
+    const summary = await syncOrgAnalytics(organizationId);
+    res.json({ synced: true, summary });
   } catch (err) {
     console.error("[analytics/sync] failed for org", organizationId, err);
     res.status(500).json({ error: err.message });

@@ -315,27 +315,40 @@ export async function syncAccountMetrics(organizationId) {
     where: { organizationId },
   });
 
+  console.log(`[analytics] syncAccountMetrics: found ${accounts.length} accounts for org ${organizationId}:`, accounts.map(a => a.platform));
+
   const today = new Date();
   today.setHours(0, 0, 0, 0);
+
+  const results = {};
 
   for (const account of accounts) {
     let metrics = null;
 
-    if (account.platform === "facebook") {
-      metrics = await fetchFacebookAccountMetrics(account.accountId, decrypt(account.accessToken));
-    } else if (account.platform === "instagram") {
-      metrics = await fetchInstagramAccountMetrics(account.accountId, decrypt(account.accessToken));
-    } else if (account.platform === "youtube") {
-      metrics = await fetchYouTubeAccountMetrics(account.accountId, decrypt(account.accessToken));
-    } else if (account.platform === "tiktok") {
-      metrics = {
-        followers: Math.floor(Math.random() * 2000) + 100,
-        following: Math.floor(Math.random() * 500),
-        totalPosts: Math.floor(Math.random() * 50) + 5,
-        impressionsLast30: null,
-        reachLast30: null,
-      };
+    try {
+      if (account.platform === "facebook") {
+        metrics = await fetchFacebookAccountMetrics(account.accountId, decrypt(account.accessToken));
+      } else if (account.platform === "instagram") {
+        metrics = await fetchInstagramAccountMetrics(account.accountId, decrypt(account.accessToken));
+      } else if (account.platform === "youtube") {
+        metrics = await fetchYouTubeAccountMetrics(account.accountId, decrypt(account.accessToken));
+      } else if (account.platform === "tiktok") {
+        metrics = {
+          followers: Math.floor(Math.random() * 2000) + 100,
+          following: Math.floor(Math.random() * 500),
+          totalPosts: Math.floor(Math.random() * 50) + 5,
+          impressionsLast30: null,
+          reachLast30: null,
+        };
+      }
+    } catch (err) {
+      console.error(`[analytics] ${account.platform} account fetch threw:`, err?.response?.data || err.message);
+      results[account.platform] = { ok: false, error: err?.response?.data?.error?.message || err.message };
+      continue;
     }
+
+    console.log(`[analytics] ${account.platform} account metrics:`, metrics);
+    results[account.platform] = metrics ? { ok: true, followers: metrics.followers } : { ok: false, error: "returned null" };
 
     if (!metrics) continue;
 
@@ -350,10 +363,15 @@ export async function syncAccountMetrics(organizationId) {
       update: { ...metrics, fetchedAt: new Date() },
       create: { organizationId, platform: account.platform, snapshotDate: today, ...metrics },
     });
+
+    console.log(`[analytics] ${account.platform} account metrics saved to DB`);
   }
+
+  return results;
 }
 
 export async function syncOrgAnalytics(organizationId) {
+  console.log(`[analytics] syncOrgAnalytics START for org ${organizationId}`);
   const platforms = ["facebook", "instagram", "youtube", "tiktok"];
   for (const platform of platforms) {
     await prisma.analyticsSync.upsert({
@@ -363,8 +381,10 @@ export async function syncOrgAnalytics(organizationId) {
     });
   }
 
+  const summary = { accountMetrics: {}, postMetrics: {}, errors: [] };
+
   try {
-    await syncAccountMetrics(organizationId);
+    summary.accountMetrics = await syncAccountMetrics(organizationId);
 
     const posts = await prisma.post.findMany({
       where: { organizationId, status: "PUBLISHED" },
@@ -372,6 +392,8 @@ export async function syncOrgAnalytics(organizationId) {
       orderBy: { publishedAt: "desc" },
       take: 100,
     });
+
+    console.log(`[analytics] found ${posts.length} published posts to sync metrics for`);
 
     for (const post of posts) {
       await syncPostMetrics(post.id);
@@ -384,8 +406,11 @@ export async function syncOrgAnalytics(organizationId) {
         create: { organizationId, platform, status: "success", lastSyncedAt: new Date() },
       });
     }
+
+    console.log(`[analytics] syncOrgAnalytics DONE`, summary);
   } catch (err) {
     console.error(`[analytics] sync failed for org ${organizationId}:`, err);
+    summary.errors.push(err.message);
     for (const platform of platforms) {
       await prisma.analyticsSync.updateMany({
         where: { organizationId, platform, status: "syncing" },
@@ -393,4 +418,6 @@ export async function syncOrgAnalytics(organizationId) {
       });
     }
   }
+
+  return summary;
 }

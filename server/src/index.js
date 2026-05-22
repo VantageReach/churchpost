@@ -9,6 +9,7 @@ dotenv.config({ path: resolve(__dirname, "../../.env") });
 import app from "./app.js";
 import { startPcSyncWorker, scheduleExistingOrgs } from "./workers/pcSyncWorker.js";
 import { startPublishWorker, startPublishScheduler } from "./workers/publishWorker.js";
+import { startAnalyticsWorker } from "./workers/analyticsWorker.js";
 
 const PORT = process.env.PORT || 3001;
 
@@ -23,4 +24,7 @@ app.listen(PORT, async () => {
   // Start post publishing worker + scheduler
   startPublishWorker();
   startPublishScheduler();
+
+  // Start analytics worker
+  startAnalyticsWorker();
 });

@@ -10,6 +10,7 @@ import {
   LogOut,
   Sparkles,
   X,
+  BarChart2,
 } from "lucide-react";
 import { cn } from "../../lib/utils.js";
 import { useOrgSettings } from "../../hooks/useOrgSettings.js";
@@ -21,6 +22,7 @@ const NAV_SECTIONS = [
       { to: "/", icon: LayoutDashboard, label: "Dashboard", end: true },
       { to: "/calendar", icon: CalendarDays, label: "Calendar" },
       { to: "/posts", icon: FileText, label: "Posts" },
+      { to: "/analytics", icon: BarChart2, label: "Analytics" },
     ],
   },
   {

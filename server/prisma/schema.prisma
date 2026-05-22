@@ -35,6 +35,8 @@ model Organization {
   savedSuggestions    SavedAiSuggestion[]
   pcConnection        PlanningCenterConnection?
   pcEvents            PlanningCenterEvent[]
+  accountMetrics      AccountMetrics[]
+  analyticsSync       AnalyticsSync[]
 }
 
 enum OrgPlan {
@@ -84,6 +86,7 @@ model Post {
   meta                  Json?
   mediaAssets           MediaAsset[]
   platformResults       PlatformResult[]
+  postMetrics           PostMetrics[]
   googleCalendarEventId String?
   createdAt             DateTime         @default(now())
   updatedAt             DateTime         @updatedAt
@@ -273,6 +276,66 @@ model PlanningCenterEvent {
 
   @@unique([organizationId, pcEventId, source])
   @@index([organizationId, startsAt])
+}
+
+// ── Analytics ─────────────────────────────────────────────────────────────────
+
+model PostMetrics {
+  id               String   @id @default(cuid())
+  postId           String
+  post             Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  platform         String
+  snapshotDate     DateTime @default(now())
+
+  impressions      Int?
+  reach            Int?
+  likes            Int?
+  comments         Int?
+  shares           Int?
+  saves            Int?
+  clicks           Int?
+  videoViews       Int?
+  videoWatchTime   Float?
+  engagementRate   Float?
+
+  fetchedAt        DateTime @default(now())
+
+  @@unique([postId, platform, snapshotDate])
+  @@index([postId, platform])
+}
+
+model AccountMetrics {
+  id                   String       @id @default(cuid())
+  organizationId       String
+  organization         Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  platform             String
+  snapshotDate         DateTime     @default(now())
+
+  followers            Int?
+  following            Int?
+  totalPosts           Int?
+  avgEngagementRate    Float?
+  impressionsLast30    Int?
+  reachLast30          Int?
+
+  fetchedAt            DateTime     @default(now())
+
+  @@unique([organizationId, platform, snapshotDate])
+  @@index([organizationId, platform])
+}
+
+model AnalyticsSync {
+  id             String       @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  platform       String
+  status         String       @default("idle") // idle | syncing | success | error
+  lastSyncedAt   DateTime?
+  errorMessage   String?
+  updatedAt      DateTime     @updatedAt
+
+  @@unique([organizationId, platform])
+  @@index([organizationId])
 }
 
 // ── Org Settings ──────────────────────────────────────────────────────────────

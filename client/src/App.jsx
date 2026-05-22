@@ -11,6 +11,7 @@ import Dashboard from "./pages/Dashboard.jsx";
 import Compose from "./pages/Compose.jsx";
 import Calendar from "./pages/Calendar.jsx";
 import Posts from "./pages/Posts.jsx";
+import Analytics from "./pages/Analytics.jsx";
 import BulkUpload from "./pages/BulkUpload.jsx";
 import Settings from "./pages/Settings.jsx";
 import Privacy from "./pages/Privacy.jsx";
@@ -60,6 +61,7 @@ function AppShell() {
           <Route path="compose/:id" element={<Compose />} />
           <Route path="calendar" element={<Calendar />} />
           <Route path="posts" element={<Posts />} />
+          <Route path="analytics" element={<Analytics />} />
           <Route path="bulk-upload" element={<BulkUpload />} />
           <Route path="settings" element={<Settings />} />
           <Route path="settings/:tab" element={<Settings />} />

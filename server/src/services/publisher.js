@@ -1,6 +1,7 @@
 import axios from "axios";
 import prisma from "../lib/prisma.js";
 import { decrypt, encrypt } from "../lib/encryption.js";
+import { enqueuePostMetricsSync } from "../workers/analyticsWorker.js";
 
 const FB = "https://graph.facebook.com/v19.0";
 
@@ -516,5 +517,11 @@ export async function publishPost(postId) {
   ]);
 
   console.log(`[Publisher] Post ${postId} → ${postStatus} (${successCount} ok, ${failCount} failed)`);
+
+  // Kick off analytics fetch 1 hour after publish so stats have time to populate
+  if (successCount > 0) {
+    enqueuePostMetricsSync(postId, 60 * 60 * 1000).catch(() => {});
+  }
+
   return { postStatus, platformResults };
 }

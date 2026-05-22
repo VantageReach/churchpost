@@ -7,6 +7,7 @@ const connection = new IORedis(process.env.REDIS_URL || "redis://localhost:6379"
 
 export const pcSyncQueue = new Queue("pc-sync", { connection });
 export const publishQueue = new Queue("publish", { connection });
+export const analyticsQueue = new Queue("analytics", { connection });
 
 export { connection as redisConnection };
 
@@ -16,4 +17,8 @@ export function createWorker(processor) {
 
 export function createPublishWorker(processor) {
   return new Worker("publish", processor, { connection });
+}
+
+export function createAnalyticsWorker(processor) {
+  return new Worker("analytics", processor, { connection });
 }

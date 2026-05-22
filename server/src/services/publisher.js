@@ -124,7 +124,9 @@ async function publishFacebook(post, account) {
     const res = await axios.post(`${FB}/${pageId}/photos`, null, {
       params: { url: getBestUrl(images[0], "facebook", format), caption, access_token: token },
     });
-    return { externalId: res.data.id, permalink: fbPermalink(res.data.id, pageId) };
+    // post_id is the feed post ID needed for insights; fall back to photo id
+    const externalId = res.data.post_id ?? res.data.id;
+    return { externalId, permalink: fbPermalink(externalId, pageId) };
   }
   const photoIds = await Promise.all(
     images.map(async (img) => {

@@ -68,75 +68,85 @@ async function fetchFacebookPostMetrics(postId, externalId, accessToken) {
 }
 
 async function fetchInstagramPostMetrics(externalId, accessToken) {
-  const fields = "like_count,comments_count,saved,reach,impressions,plays,shares";
+  // Basic fields always available with instagram_basic
+  let likes = null, comments = null;
   try {
     const { data } = await axios.get(
       `https://graph.facebook.com/v21.0/${externalId}`,
-      { params: { fields, access_token: accessToken } }
+      { params: { fields: "like_count,comments_count", access_token: accessToken } }
     );
-
-    const likes = data.like_count ?? null;
-    const comments = data.comments_count ?? null;
-    const saves = data.saved ?? null;
-    const reach = data.reach ?? null;
-    const impressions = data.impressions ?? null;
-    const videoViews = data.plays ?? null;
-    const shares = data.shares ?? null;
-
-    const engTotal = (likes || 0) + (comments || 0) + (saves || 0);
-    const engagementRate =
-      reach && reach > 0 ? parseFloat(((engTotal / reach) * 100).toFixed(2)) : null;
-
-    return {
-      impressions,
-      reach,
-      likes,
-      comments,
-      shares,
-      saves,
-      clicks: null,
-      videoViews,
-      videoWatchTime: null,
-      engagementRate,
-    };
+    likes = data.like_count ?? null;
+    comments = data.comments_count ?? null;
   } catch (err) {
     const msg = err?.response?.data?.error?.message || err.message;
-    console.warn(`[analytics] IG post metrics failed for ${externalId}: ${msg}`);
+    console.warn(`[analytics] IG basic fields failed for ${externalId}: ${msg}`);
     return null;
   }
+
+  // Insight fields require instagram_manage_insights — try separately, non-fatal
+  let saves = null, reach = null, impressions = null, videoViews = null, shares = null;
+  try {
+    const insightRes = await axios.get(
+      `https://graph.facebook.com/v21.0/${externalId}/insights`,
+      { params: { metric: "saved,reach,impressions,plays,shares", access_token: accessToken } }
+    );
+    const byName = {};
+    for (const item of insightRes.data?.data ?? []) {
+      byName[item.name] = item.values?.[0]?.value ?? item.value ?? null;
+    }
+    saves = byName.saved ?? null;
+    reach = byName.reach ?? null;
+    impressions = byName.impressions ?? null;
+    videoViews = byName.plays ?? null;
+    shares = byName.shares ?? null;
+  } catch {
+    // instagram_manage_insights not granted — only basic data available
+  }
+
+  const engTotal = (likes || 0) + (comments || 0) + (saves || 0);
+  const engagementRate =
+    reach && reach > 0 ? parseFloat(((engTotal / reach) * 100).toFixed(2)) : null;
+
+  return {
+    impressions, reach, likes, comments, shares, saves,
+    clicks: null, videoViews, videoWatchTime: null, engagementRate,
+  };
 }
 
 async function fetchFacebookAccountMetrics(pageId, accessToken) {
+  // Fetch follower count and page insights separately so one failure doesn't kill both
+  let followers = null;
   try {
-    const [fanRes, insightRes] = await Promise.all([
-      axios.get(`https://graph.facebook.com/v21.0/${pageId}`, {
-        params: { fields: "fan_count,followers_count", access_token: accessToken },
-      }),
-      axios.get(`https://graph.facebook.com/v21.0/${pageId}/insights`, {
-        params: {
-          metric: "page_impressions,page_reach",
-          period: "days_28",
-          access_token: accessToken,
-        },
-      }),
-    ]);
+    const fanRes = await axios.get(`https://graph.facebook.com/v21.0/${pageId}`, {
+      params: { fields: "fan_count,followers_count", access_token: accessToken },
+    });
+    followers = fanRes.data?.followers_count ?? fanRes.data?.fan_count ?? null;
+  } catch (err) {
+    console.warn(`[analytics] FB fan_count failed for ${pageId}: ${err?.response?.data?.error?.message || err.message}`);
+  }
 
-    const followers = fanRes.data?.followers_count ?? fanRes.data?.fan_count ?? null;
+  let impressionsLast30 = null;
+  let reachLast30 = null;
+  try {
+    const insightRes = await axios.get(`https://graph.facebook.com/v21.0/${pageId}/insights`, {
+      params: {
+        metric: "page_impressions,page_reach",
+        period: "days_28",
+        access_token: accessToken,
+      },
+    });
     const byName = {};
     for (const item of insightRes.data?.data ?? []) {
       byName[item.name] = item.values?.slice(-1)[0]?.value ?? null;
     }
-
-    return {
-      followers,
-      following: null,
-      impressionsLast30: byName["page_impressions"] ?? null,
-      reachLast30: byName["page_reach"] ?? null,
-    };
+    impressionsLast30 = byName["page_impressions"] ?? null;
+    reachLast30 = byName["page_reach"] ?? null;
   } catch (err) {
-    console.warn(`[analytics] FB account metrics failed: ${err.message}`);
-    return null;
+    console.warn(`[analytics] FB page insights failed for ${pageId}: ${err?.response?.data?.error?.message || err.message}`);
   }
+
+  if (followers === null && impressionsLast30 === null) return null;
+  return { followers, following: null, impressionsLast30, reachLast30 };
 }
 
 async function fetchInstagramAccountMetrics(igUserId, accessToken) {

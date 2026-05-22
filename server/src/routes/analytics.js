@@ -175,12 +175,13 @@ router.post("/sync", async (req, res) => {
     return res.status(403).json({ error: "Analytics sync is disabled in demo mode." });
   }
 
-  // Fire and forget — client polls for updated data
-  syncOrgAnalytics(organizationId).catch((err) =>
-    console.error("[analytics/sync] failed for org", organizationId, err)
-  );
-
-  res.json({ syncing: true });
+  try {
+    await syncOrgAnalytics(organizationId);
+    res.json({ synced: true });
+  } catch (err) {
+    console.error("[analytics/sync] failed for org", organizationId, err);
+    res.status(500).json({ error: err.message });
+  }
 });
 
 export default router;

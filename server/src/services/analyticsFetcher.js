@@ -1,5 +1,6 @@
 import axios from "axios";
 import prisma from "../lib/prisma.js";
+import { decrypt } from "../lib/encryption.js";
 
 // ── Facebook / Instagram (Meta Graph API) ─────────────────────────────────────
 
@@ -280,11 +281,11 @@ export async function syncPostMetrics(postId) {
     let metrics = null;
 
     if (result.platform === "facebook") {
-      metrics = await fetchFacebookPostMetrics(postId, result.externalId, account.accessToken);
+      metrics = await fetchFacebookPostMetrics(postId, result.externalId, decrypt(account.accessToken));
     } else if (result.platform === "instagram") {
-      metrics = await fetchInstagramPostMetrics(result.externalId, account.accessToken);
+      metrics = await fetchInstagramPostMetrics(result.externalId, decrypt(account.accessToken));
     } else if (result.platform === "youtube") {
-      metrics = await fetchYouTubePostMetrics(result.externalId, account.accessToken);
+      metrics = await fetchYouTubePostMetrics(result.externalId, decrypt(account.accessToken));
     } else if (result.platform === "tiktok") {
       metrics = mockTikTokPostMetrics();
     }
@@ -311,11 +312,11 @@ export async function syncAccountMetrics(organizationId) {
     let metrics = null;
 
     if (account.platform === "facebook") {
-      metrics = await fetchFacebookAccountMetrics(account.accountId, account.accessToken);
+      metrics = await fetchFacebookAccountMetrics(account.accountId, decrypt(account.accessToken));
     } else if (account.platform === "instagram") {
-      metrics = await fetchInstagramAccountMetrics(account.accountId, account.accessToken);
+      metrics = await fetchInstagramAccountMetrics(account.accountId, decrypt(account.accessToken));
     } else if (account.platform === "youtube") {
-      metrics = await fetchYouTubeAccountMetrics(account.accountId, account.accessToken);
+      metrics = await fetchYouTubeAccountMetrics(account.accountId, decrypt(account.accessToken));
     } else if (account.platform === "tiktok") {
       metrics = {
         followers: Math.floor(Math.random() * 2000) + 100,

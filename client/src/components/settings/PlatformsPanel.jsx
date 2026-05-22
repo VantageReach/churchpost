@@ -24,6 +24,7 @@ import {
 import { useMetaStatus, useMetaConnect, useMetaDisconnect } from "../../hooks/useMeta.js";
 import { useYouTubeStatus, useYouTubeConnect, useYouTubeDisconnect } from "../../hooks/useGoogle.js";
 import { useTikTokStatus, useTikTokConnect, useTikTokDisconnect } from "../../hooks/useTikTok.js";
+import { useGCalStatus, useGCalConnect, useGCalSync, useGCalDisconnect } from "../../hooks/useGoogleCalendar.js";
 
 const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:3001/api";
 const CONNECT_URL = `${API_BASE}/integrations/planning-center/connect`;
@@ -519,6 +520,103 @@ function TikTokCard() {
   );
 }
 
+function GoogleCalendarIcon({ className }) {
+  return (
+    <svg className={className} viewBox="0 0 48 48" fill="none">
+      <rect x="6" y="8" width="36" height="36" rx="4" fill="white" stroke="#E0E0E0" strokeWidth="1.5" />
+      <rect x="6" y="8" width="36" height="10" rx="4" fill="#1A73E8" />
+      <rect x="6" y="16" width="36" height="2" fill="#1A73E8" />
+      <circle cx="16" cy="10" r="2.5" fill="white" />
+      <circle cx="32" cy="10" r="2.5" fill="white" />
+      <rect x="14" y="6" width="2" height="8" rx="1" fill="white" />
+      <rect x="32" y="6" width="2" height="8" rx="1" fill="white" />
+      <text x="24" y="36" textAnchor="middle" fontSize="14" fontWeight="bold" fill="#1A73E8" fontFamily="sans-serif">G</text>
+    </svg>
+  );
+}
+
+function GoogleCalendarCard() {
+  const { data, isLoading } = useGCalStatus();
+  const connect = useGCalConnect();
+  const syncMutation = useGCalSync();
+  const disconnect = useGCalDisconnect();
+  const [confirm, setConfirm] = useState(false);
+
+  const lastSynced = data?.lastSyncedAt
+    ? new Date(data.lastSyncedAt).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" })
+    : "Never";
+
+  return (
+    <div className="rounded-2xl border border-gray-200 bg-white overflow-hidden">
+      <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
+        <div className="flex items-center gap-2">
+          <div className="h-8 w-8 rounded-xl bg-blue-50 flex items-center justify-center">
+            <GoogleCalendarIcon className="h-6 w-6" />
+          </div>
+          <div>
+            <p className="text-[14px] font-semibold text-gray-900">Google Calendar</p>
+            <p className="text-[11px] text-gray-400">Import events to power AI content suggestions</p>
+          </div>
+        </div>
+        {data?.connected && <CheckCircle2 className="h-4 w-4 text-emerald-500" />}
+      </div>
+
+      <div className="px-5 py-4">
+        {isLoading ? (
+          <div className="h-8 rounded-lg bg-gray-100 animate-pulse" />
+        ) : data?.connected ? (
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-[13px] font-medium text-gray-800">{data.email}</p>
+                <p className="text-[11px] text-gray-400 flex items-center gap-1 mt-0.5">
+                  <Clock className="h-3 w-3" />
+                  Last synced: {lastSynced}
+                </p>
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => syncMutation.mutate()}
+                  disabled={syncMutation.isPending || data.syncStatus === "syncing"}
+                  className="flex items-center gap-1 px-2.5 py-1.5 text-[11px] font-medium text-blue-600 bg-blue-50 rounded-lg hover:bg-blue-100 disabled:opacity-50 transition-colors"
+                >
+                  <RefreshCw className={cn("h-3 w-3", (syncMutation.isPending || data.syncStatus === "syncing") && "animate-spin")} />
+                  Sync
+                </button>
+                {confirm ? (
+                  <>
+                    <button onClick={() => { disconnect.mutate(); setConfirm(false); }} className="text-[11px] text-white bg-red-500 px-2 py-1 rounded-lg hover:bg-red-600 transition-colors">Disconnect</button>
+                    <button onClick={() => setConfirm(false)} className="text-[11px] text-gray-400 hover:text-gray-600">Cancel</button>
+                  </>
+                ) : (
+                  <button onClick={() => setConfirm(true)} className="text-[11px] text-gray-400 hover:text-red-500 transition-colors">
+                    <Unplug className="h-3.5 w-3.5" />
+                  </button>
+                )}
+              </div>
+            </div>
+            {data.eventCount > 0 && (
+              <p className="text-[11px] text-gray-400 flex items-center gap-1">
+                <Calendar className="h-3 w-3" />
+                {data.eventCount} upcoming events imported
+              </p>
+            )}
+          </div>
+        ) : (
+          <button
+            onClick={() => connect.mutate()}
+            disabled={connect.isPending}
+            className="inline-flex items-center gap-2 px-4 py-2 text-[13px] font-medium text-white bg-[#1A73E8] rounded-xl hover:bg-[#1558B0] transition-colors disabled:opacity-60"
+          >
+            <GoogleCalendarIcon className="h-4 w-4" />
+            {connect.isPending ? "Connecting…" : "Connect Google Calendar"}
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export default function PlatformsPanel() {
   const [searchParams, setSearchParams] = useSearchParams();
   const { data, isLoading } = usePCStatus();
@@ -532,19 +630,21 @@ export default function PlatformsPanel() {
   const googleError = searchParams.get("google_error");
   const tiktokConnected = searchParams.get("tiktok_connected");
   const tiktokError = searchParams.get("tiktok_error");
+  const gcalConnected = searchParams.get("gcal_connected");
+  const gcalError = searchParams.get("gcal_error");
 
   useEffect(() => {
-    const hasFlash = pcConnected || pcError || metaConnected || metaError || googleConnected || googleError || tiktokConnected || tiktokError;
+    const hasFlash = pcConnected || pcError || metaConnected || metaError || googleConnected || googleError || tiktokConnected || tiktokError || gcalConnected || gcalError;
     if (hasFlash) {
       const t = setTimeout(() => {
         setSearchParams((p) => {
-          ["pc_connected", "pc_error", "meta_connected", "meta_error", "google_connected", "google_error", "tiktok_connected", "tiktok_error"].forEach((k) => p.delete(k));
+          ["pc_connected", "pc_error", "meta_connected", "meta_error", "google_connected", "google_error", "tiktok_connected", "tiktok_error", "gcal_connected", "gcal_error"].forEach((k) => p.delete(k));
           return p;
         });
       }, 4000);
       return () => clearTimeout(t);
     }
-  }, [pcConnected, pcError, metaConnected, metaError, googleConnected, googleError, tiktokConnected, tiktokError, setSearchParams]);
+  }, [pcConnected, pcError, metaConnected, metaError, googleConnected, googleError, tiktokConnected, tiktokError, gcalConnected, gcalError, setSearchParams]);
 
   return (
     <div className="p-5 lg:p-8 max-w-2xl space-y-6">
@@ -556,39 +656,48 @@ export default function PlatformsPanel() {
       </div>
 
       {/* Flash messages */}
-      {(pcConnected || metaConnected || googleConnected || tiktokConnected) && (
+      {(pcConnected || metaConnected || googleConnected || tiktokConnected || gcalConnected) && (
         <div className="flex items-center gap-2 px-4 py-3 rounded-xl bg-emerald-50 border border-emerald-200 text-[13px] text-emerald-700">
           <CheckCircle2 className="h-4 w-4 flex-shrink-0" />
           {metaConnected ? "Facebook connected! Instagram linked automatically if available."
             : googleConnected ? "YouTube channel connected!"
             : tiktokConnected ? "TikTok account connected!"
+            : gcalConnected ? "Google Calendar connected! Importing upcoming events now."
             : "Planning Center connected! First sync running in the background."}
         </div>
       )}
-      {(pcError || metaError || googleError || tiktokError) && (
+      {(pcError || metaError || googleError || tiktokError || gcalError) && (
         <div className="flex items-center gap-2 px-4 py-3 rounded-xl bg-red-50 border border-red-200 text-[13px] text-red-700">
           <AlertCircle className="h-4 w-4 flex-shrink-0" />
-          Connection failed: {(pcError || metaError || googleError || tiktokError).replace(/_/g, " ")}. Please try again.
+          Connection failed: {(pcError || metaError || googleError || tiktokError || gcalError).replace(/_/g, " ")}. Please try again.
         </div>
       )}
 
-      {/* Facebook & Instagram */}
-      <MetaCard />
+      {/* Social Media section */}
+      <div>
+        <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider mb-3">Social Media</p>
+        <div className="space-y-4">
+          <MetaCard />
+          <YouTubeCard />
+          <TikTokCard />
+        </div>
+      </div>
 
-      {/* YouTube */}
-      <YouTubeCard />
-
-      {/* TikTok */}
-      <TikTokCard />
-
-      {/* Planning Center */}
-      {isLoading ? (
-        <div className="h-40 rounded-2xl bg-gray-100 animate-pulse" />
-      ) : data?.connected ? (
-        <ConnectedCard data={data} onDisconnect={() => disconnect.mutate()} />
-      ) : (
-        <DisconnectedCard />
-      )}
+      {/* Content Sources section */}
+      <div>
+        <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider mb-1">Content Sources</p>
+        <p className="text-[12px] text-gray-400 mb-3">Connect data sources to power AI content suggestions.</p>
+        <div className="space-y-4">
+          {isLoading ? (
+            <div className="h-40 rounded-2xl bg-gray-100 animate-pulse" />
+          ) : data?.connected ? (
+            <ConnectedCard data={data} onDisconnect={() => disconnect.mutate()} />
+          ) : (
+            <DisconnectedCard />
+          )}
+          <GoogleCalendarCard />
+        </div>
+      </div>
 
     </div>
   );

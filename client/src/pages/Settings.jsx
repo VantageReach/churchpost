@@ -3,7 +3,6 @@ import {
   Settings as SettingsIcon,
   Palette,
   Plug,
-  CalendarDays,
   Users,
   CreditCard,
   UserCircle,
@@ -13,7 +12,6 @@ import BrandingPanel from "../components/settings/BrandingPanel.jsx";
 import GeneralPanel from "../components/settings/GeneralPanel.jsx";
 import TeamPanel from "../components/settings/TeamPanel.jsx";
 import PlatformsPanel from "../components/settings/PlatformsPanel.jsx";
-import CalendarPanel from "../components/settings/CalendarPanel.jsx";
 import AccountPanel from "../components/settings/AccountPanel.jsx";
 import ProfilePanel from "../components/settings/ProfilePanel.jsx";
 
@@ -21,7 +19,6 @@ const TABS = [
   { key: "general", label: "General & AI", icon: SettingsIcon, to: "/settings" },
   { key: "branding", label: "Branding", icon: Palette, to: "/settings/branding" },
   { key: "platforms", label: "Platforms", icon: Plug, to: "/settings/platforms" },
-  { key: "calendar", label: "Calendar", icon: CalendarDays, to: "/settings/calendar" },
   { key: "team", label: "Team", icon: Users, to: "/settings/team" },
   { key: "account", label: "Account", icon: CreditCard, to: "/settings/account" },
   { key: "profile", label: "Profile", icon: UserCircle, to: "/settings/profile" },
@@ -51,8 +48,6 @@ export default function Settings() {
         return <BrandingPanel />;
       case "platforms":
         return <PlatformsPanel />;
-      case "calendar":
-        return <CalendarPanel />;
       case "team":
         return <TeamPanel />;
       case "account":

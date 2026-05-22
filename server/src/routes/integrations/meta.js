@@ -7,7 +7,7 @@ import { requireOrgRole } from "../../middleware/auth.js";
 const FB_VERSION = "v19.0";
 const FB_BASE = `https://graph.facebook.com/${FB_VERSION}`;
 const FB_AUTH_URL = `https://www.facebook.com/${FB_VERSION}/dialog/oauth`;
-const SCOPES = "pages_show_list,pages_manage_posts,pages_read_engagement,read_insights,instagram_basic,instagram_content_publish,instagram_manage_insights,public_profile";
+const SCOPES = "pages_show_list,pages_manage_posts,pages_read_engagement,instagram_basic,instagram_content_publish,public_profile";
 
 // Encode orgId + expiry into the state token so it survives server restarts
 function storeState(orgId) {

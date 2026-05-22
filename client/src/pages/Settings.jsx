@@ -18,7 +18,7 @@ import ProfilePanel from "../components/settings/ProfilePanel.jsx";
 const TABS = [
   { key: "general", label: "General & AI", icon: SettingsIcon, to: "/settings" },
   { key: "branding", label: "Branding", icon: Palette, to: "/settings/branding" },
-  { key: "platforms", label: "Platforms", icon: Plug, to: "/settings/platforms" },
+  { key: "platforms", label: "Integrations", icon: Plug, to: "/settings/platforms" },
   { key: "team", label: "Team", icon: Users, to: "/settings/team" },
   { key: "account", label: "Account", icon: CreditCard, to: "/settings/account" },
   { key: "profile", label: "Profile", icon: UserCircle, to: "/settings/profile" },

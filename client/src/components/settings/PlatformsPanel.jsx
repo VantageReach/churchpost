@@ -649,7 +649,7 @@ export default function PlatformsPanel() {
   return (
     <div className="p-5 lg:p-8 max-w-2xl space-y-6">
       <div>
-        <h2 className="text-[16px] font-semibold text-gray-900 mb-0.5">Platform Connections</h2>
+        <h2 className="text-[16px] font-semibold text-gray-900 mb-0.5">Integrations</h2>
         <p className="text-[13px] text-gray-500">
           Connect your publishing platforms and content sources.
         </p>

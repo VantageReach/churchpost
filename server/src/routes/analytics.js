@@ -1,6 +1,6 @@
 import { Router } from "express";
 import prisma from "../lib/prisma.js";
-import { enqueueOrgAnalyticsSync } from "../workers/analyticsWorker.js";
+import { syncOrgAnalytics } from "../services/analyticsFetcher.js";
 
 const router = Router();
 
@@ -167,7 +167,7 @@ router.get("/account", async (req, res) => {
 });
 
 // POST /api/analytics/sync
-// Trigger a full analytics refresh for this org
+// Trigger a full analytics refresh for this org (runs directly, not via queue)
 router.post("/sync", async (req, res) => {
   const organizationId = req.org.id;
 
@@ -175,8 +175,12 @@ router.post("/sync", async (req, res) => {
     return res.status(403).json({ error: "Analytics sync is disabled in demo mode." });
   }
 
-  await enqueueOrgAnalyticsSync(organizationId);
-  res.json({ queued: true });
+  // Fire and forget — client polls for updated data
+  syncOrgAnalytics(organizationId).catch((err) =>
+    console.error("[analytics/sync] failed for org", organizationId, err)
+  );
+
+  res.json({ syncing: true });
 });
 
 export default router;

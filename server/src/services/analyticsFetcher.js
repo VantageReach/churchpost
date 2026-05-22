@@ -171,6 +171,7 @@ async function fetchYouTubePostMetrics(videoId, accessToken) {
     const { data } = await axios.get(
       "https://youtubeanalytics.googleapis.com/v2/reports",
       {
+        headers: { Authorization: `Bearer ${accessToken}` },
         params: {
           ids: "channel==MINE",
           startDate: "2020-01-01",
@@ -179,7 +180,6 @@ async function fetchYouTubePostMetrics(videoId, accessToken) {
             "views,comments,likes,dislikes,shares,estimatedMinutesWatched,averageViewDuration",
           filters: `video==${videoId}`,
           dimensions: "video",
-          access_token: accessToken,
         },
       }
     );
@@ -214,10 +214,10 @@ async function fetchYouTubeAccountMetrics(channelId, accessToken) {
     const { data } = await axios.get(
       "https://www.googleapis.com/youtube/v3/channels",
       {
+        headers: { Authorization: `Bearer ${accessToken}` },
         params: {
           part: "statistics",
           id: channelId,
-          access_token: accessToken,
         },
       }
     );

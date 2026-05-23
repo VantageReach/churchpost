@@ -816,18 +816,19 @@ footer{background:#050312;padding:56px 48px}
       <div class="form-card">
         <div class="form-title">Request Early Access</div>
         <div class="form-note">We'll reach out within 24 hours.</div>
-        <form>
+        <form id="access-form" action="https://formspree.io/f/mwvzlpvw" method="POST">
+          <input type="hidden" name="_subject" value="New Early Access Request — ChurchPost">
           <div class="form-row">
-            <div class="fg"><label>First name <span>*</span></label><input type="text" placeholder="John"></div>
-            <div class="fg"><label>Last name <span>*</span></label><input type="text" placeholder="Wallace"></div>
+            <div class="fg"><label>First name <span>*</span></label><input type="text" name="first_name" placeholder="John" required></div>
+            <div class="fg"><label>Last name <span>*</span></label><input type="text" name="last_name" placeholder="Wallace" required></div>
           </div>
-          <div class="fg"><label>Email address <span>*</span></label><input type="email" placeholder="john@mychurch.com"></div>
-          <div class="fg"><label>Phone (optional)</label><input type="tel" placeholder="(555) 000-0000"></div>
-          <div class="fg"><label>Church name <span>*</span></label><input type="text" placeholder="City Church"></div>
-          <div class="fg"><label>Church website <span>*</span></label><input type="url" placeholder="https://mychurch.com"></div>
+          <div class="fg"><label>Email address <span>*</span></label><input type="email" name="email" placeholder="john@mychurch.com" required></div>
+          <div class="fg"><label>Phone (optional)</label><input type="tel" name="phone" placeholder="(555) 000-0000"></div>
+          <div class="fg"><label>Church name <span>*</span></label><input type="text" name="church_name" placeholder="City Church" required></div>
+          <div class="fg"><label>Church website <span>*</span></label><input type="url" name="church_website" placeholder="https://mychurch.com" required></div>
           <div class="form-row">
             <div class="fg"><label>Your role <span>*</span></label>
-              <select>
+              <select name="role" required>
                 <option value="">Select...</option>
                 <option>Lead Pastor</option>
                 <option>Communications Director</option>
@@ -838,7 +839,7 @@ footer{background:#050312;padding:56px 48px}
               </select>
             </div>
             <div class="fg"><label>Congregation size</label>
-              <select>
+              <select name="congregation_size">
                 <option value="">Select...</option>
                 <option>Under 100</option>
                 <option>100–300</option>
@@ -852,17 +853,19 @@ footer{background:#050312;padding:56px 48px}
           <div class="fg">
             <label>Platforms you're currently using</label>
             <div class="check-group">
-              <label class="check-item"><input type="checkbox"> Facebook</label>
-              <label class="check-item"><input type="checkbox"> Instagram</label>
-              <label class="check-item"><input type="checkbox"> YouTube</label>
-              <label class="check-item"><input type="checkbox"> TikTok</label>
-              <label class="check-item"><input type="checkbox"> None yet</label>
+              <label class="check-item"><input type="checkbox" name="platforms" value="Facebook"> Facebook</label>
+              <label class="check-item"><input type="checkbox" name="platforms" value="Instagram"> Instagram</label>
+              <label class="check-item"><input type="checkbox" name="platforms" value="YouTube"> YouTube</label>
+              <label class="check-item"><input type="checkbox" name="platforms" value="TikTok"> TikTok</label>
+              <label class="check-item"><input type="checkbox" name="platforms" value="None yet"> None yet</label>
             </div>
           </div>
-          <div class="fg"><label>How did you hear about ChurchPost?</label><input type="text" placeholder="Word of mouth, social media..."></div>
-          <div class="fg"><label>Anything else? (optional)</label><textarea placeholder="Tell us about your church's social media goals..."></textarea></div>
+          <div class="fg"><label>How did you hear about ChurchPost?</label><input type="text" name="referral" placeholder="Word of mouth, social media..."></div>
+          <div class="fg"><label>Anything else? (optional)</label><textarea name="message" placeholder="Tell us about your church's social media goals..."></textarea></div>
           <button type="submit" class="form-submit">Request Early Access →</button>
           <p class="form-legal">No credit card required. We'll reach out within 24 hours.</p>
+          <p class="form-success" id="access-success" style="display:none;color:#7C3AED;font-weight:600;margin-top:12px;">Thanks! We'll be in touch within 24 hours.</p>
+          <p class="form-error" id="access-error" style="display:none;color:#dc2626;font-size:13px;margin-top:12px;">Something went wrong. Please try again or email hello@churchpost.social.</p>
         </form>
       </div>
     </div>
@@ -883,11 +886,14 @@ footer{background:#050312;padding:56px 48px}
         </div>
       </div>
       <div class="c-form">
-        <form>
-          <div class="fg"><label>Your name</label><input type="text" placeholder="John Wallace"></div>
-          <div class="fg"><label>Email</label><input type="email" placeholder="john@mychurch.com"></div>
-          <div class="fg"><label>Message</label><textarea placeholder="Ask us anything..."></textarea></div>
+        <form id="contact-form" action="https://formspree.io/f/mwvzlpvw" method="POST">
+          <input type="hidden" name="_subject" value="New Contact Message — ChurchPost">
+          <div class="fg"><label>Your name</label><input type="text" name="name" placeholder="John Wallace"></div>
+          <div class="fg"><label>Email</label><input type="email" name="email" placeholder="john@mychurch.com" required></div>
+          <div class="fg"><label>Message</label><textarea name="message" placeholder="Ask us anything..."></textarea></div>
           <button type="submit" class="form-submit">Send Message →</button>
+          <p id="contact-success" style="display:none;color:#7C3AED;font-weight:600;margin-top:12px;">Thanks! We'll get back to you soon.</p>
+          <p id="contact-error" style="display:none;color:#dc2626;font-size:13px;margin-top:12px;">Something went wrong. Please try again or email hello@churchpost.social.</p>
         </form>
       </div>
     </div>
@@ -917,5 +923,36 @@ footer{background:#050312;padding:56px 48px}
   </div>
 </footer>
 
+<script>
+  function handleFormspree(formId, successId, errorId) {
+    const form = document.getElementById(formId);
+    if (!form) return;
+    form.addEventListener('submit', async function(e) {
+      e.preventDefault();
+      const btn = form.querySelector('button[type="submit"]');
+      const orig = btn.textContent;
+      btn.textContent = 'Sending…';
+      btn.disabled = true;
+      try {
+        const res = await fetch(form.action, {
+          method: 'POST',
+          body: new FormData(form),
+          headers: { Accept: 'application/json' }
+        });
+        if (res.ok) {
+          window.location.href = '/thank-you';
+        } else {
+          throw new Error();
+        }
+      } catch {
+        document.getElementById(errorId).style.display = 'block';
+        btn.textContent = orig;
+        btn.disabled = false;
+      }
+    });
+  }
+  handleFormspree('access-form', 'access-success', 'access-error');
+  handleFormspree('contact-form', 'contact-success', 'contact-error');
+</script>
 </body>
 </html>

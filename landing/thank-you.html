@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Thank You — ChurchPost</title>
+<meta name="description" content="We received your request. We'll be in touch within 24 hours.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,700;12..96,800&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,400&display=swap" rel="stylesheet">
+
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth;-webkit-font-smoothing:antialiased}
+
+:root{
+  --ink: #07041A;
+  --ink-2: #120D30;
+  --ink-3: #1D1648;
+  --violet: #6E4DFF;
+  --violet-bright: #7C5CFF;
+  --violet-light: #A78BFF;
+  --violet-soft: rgba(110,77,255,0.1);
+  --violet-glow: rgba(110,77,255,0.22);
+  --lavender: #F4F1FF;
+  --green: #00C48C;
+  --text: #2E2857;
+  --text-muted: #7870A0;
+  --radius: 16px;
+}
+
+body{font-family:'DM Sans',sans-serif;background:var(--ink);color:#fff;overflow-x:hidden;min-height:100vh;display:flex;flex-direction:column}
+
+/* ── NAV ── */
+nav{
+  position:sticky;top:0;z-index:100;
+  display:flex;align-items:center;justify-content:space-between;
+  padding:0 48px;height:68px;
+  background:rgba(7,4,26,0.88);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);
+  border-bottom:1px solid rgba(255,255,255,0.06)
+}
+.logo{display:flex;align-items:center;gap:10px;text-decoration:none;color:#fff;font-family:'Bricolage Grotesque',sans-serif;font-weight:800;font-size:18px;letter-spacing:-0.3px}
+.logo-mark{width:32px;height:32px;background:var(--violet);border-radius:9px;display:flex;align-items:center;justify-content:center;box-shadow:0 0 0 1px rgba(255,255,255,0.1)}
+.logo-mark svg{width:16px;height:16px;fill:none;stroke:#fff;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}
+.nav-btn{background:var(--violet);color:#fff;text-decoration:none;border-radius:8px;padding:8px 20px;font-size:14px;font-weight:600;transition:background .15s,transform .15s;display:inline-flex;align-items:center}
+.nav-btn:hover{background:var(--violet-bright);transform:translateY(-1px)}
+
+/* ── MAIN ── */
+main{
+  flex:1;
+  position:relative;overflow:hidden;
+  display:flex;align-items:center;justify-content:center;
+  padding:80px 24px;
+}
+
+/* background mesh */
+.bg-mesh{position:absolute;inset:0;pointer-events:none;z-index:0}
+.bg-mesh::before{
+  content:'';position:absolute;
+  width:800px;height:800px;border-radius:50%;
+  background:radial-gradient(circle,rgba(110,77,255,0.2) 0%,transparent 70%);
+  top:-200px;left:50%;transform:translateX(-50%)
+}
+.bg-mesh::after{
+  content:'';position:absolute;
+  width:400px;height:400px;border-radius:50%;
+  background:radial-gradient(circle,rgba(0,196,140,0.08) 0%,transparent 70%);
+  bottom:0;right:15%
+}
+
+.card{
+  position:relative;z-index:2;
+  text-align:center;
+  max-width:520px;width:100%;
+}
+
+/* animated check */
+.check-wrap{
+  width:80px;height:80px;
+  border-radius:50%;
+  background:rgba(0,196,140,0.1);
+  border:1.5px solid rgba(0,196,140,0.25);
+  display:flex;align-items:center;justify-content:center;
+  margin:0 auto 32px;
+  animation:pop .6s cubic-bezier(.22,.68,0,1.4) both;
+}
+.check-wrap svg{
+  width:36px;height:36px;
+  stroke:var(--green);stroke-width:2.5;
+  stroke-linecap:round;stroke-linejoin:round;
+  fill:none;
+}
+.check-path{
+  stroke-dasharray:40;
+  stroke-dashoffset:40;
+  animation:draw-check .4s cubic-bezier(.22,.68,0,1.2) .4s forwards;
+}
+
+@keyframes pop{
+  from{opacity:0;transform:scale(0.6)}
+  to{opacity:1;transform:scale(1)}
+}
+@keyframes draw-check{
+  to{stroke-dashoffset:0}
+}
+
+.eyebrow{
+  display:inline-flex;align-items:center;gap:6px;
+  border:1px solid rgba(167,139,255,0.25);
+  background:rgba(110,77,255,0.08);
+  color:var(--violet-light);border-radius:100px;
+  padding:5px 14px;font-size:12px;font-weight:500;
+  margin-bottom:20px;letter-spacing:0.3px;
+  opacity:0;animation:fade-up .6s cubic-bezier(.22,.68,0,1.2) .55s forwards;
+}
+.eyebrow-dot{width:5px;height:5px;border-radius:50%;background:var(--green);box-shadow:0 0 6px var(--green)}
+
+h1{
+  font-family:'Bricolage Grotesque',sans-serif;
+  font-size:52px;font-weight:800;
+  line-height:1.05;letter-spacing:-1.8px;
+  color:#fff;margin-bottom:16px;
+  opacity:0;animation:fade-up .6s cubic-bezier(.22,.68,0,1.2) .65s forwards;
+}
+h1 em{font-style:normal;color:var(--violet-light)}
+
+.sub{
+  font-size:17px;color:rgba(255,255,255,0.5);
+  line-height:1.7;font-weight:300;
+  max-width:400px;margin:0 auto 40px;
+  opacity:0;animation:fade-up .6s cubic-bezier(.22,.68,0,1.2) .75s forwards;
+}
+
+.next-steps{
+  display:flex;flex-direction:column;gap:12px;
+  margin-bottom:44px;text-align:left;
+  opacity:0;animation:fade-up .6s cubic-bezier(.22,.68,0,1.2) .85s forwards;
+}
+.step{
+  display:flex;align-items:flex-start;gap:14px;
+  background:rgba(255,255,255,0.04);
+  border:1px solid rgba(255,255,255,0.07);
+  border-radius:14px;padding:16px 18px;
+}
+.step-num{
+  width:26px;height:26px;border-radius:8px;
+  background:var(--violet-soft);
+  border:1px solid rgba(110,77,255,0.3);
+  display:flex;align-items:center;justify-content:center;
+  font-size:12px;font-weight:700;color:var(--violet-light);
+  flex-shrink:0;margin-top:1px;
+}
+.step-text strong{display:block;font-size:14px;font-weight:600;color:rgba(255,255,255,0.9);margin-bottom:2px}
+.step-text span{font-size:13px;color:rgba(255,255,255,0.4);font-weight:300;line-height:1.5}
+
+.btn-home{
+  display:inline-flex;align-items:center;gap:8px;
+  background:var(--violet);color:#fff;
+  text-decoration:none;border-radius:12px;
+  padding:14px 32px;font-size:15px;font-weight:600;
+  transition:background .15s,transform .15s,box-shadow .15s;
+  box-shadow:0 0 0 1px rgba(110,77,255,0.4),0 8px 24px rgba(110,77,255,0.25);
+  opacity:0;animation:fade-up .6s cubic-bezier(.22,.68,0,1.2) .95s forwards;
+}
+.btn-home:hover{background:var(--violet-bright);transform:translateY(-2px);box-shadow:0 0 0 1px rgba(110,77,255,0.5),0 12px 32px rgba(110,77,255,0.35)}
+.btn-home:active{transform:translateY(0)}
+.btn-home svg{width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+
+@keyframes fade-up{from{opacity:0;transform:translateY(18px)}to{opacity:1;transform:translateY(0)}}
+
+/* ── FOOTER ── */
+footer{background:#050312;padding:40px 48px}
+.footer-inner{max-width:1100px;margin:0 auto;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:16px;border-top:1px solid rgba(255,255,255,0.06);padding-top:32px}
+.footer-copy{font-size:13px;color:rgba(255,255,255,0.2);font-weight:300}
+.footer-links{display:flex;gap:24px}
+.footer-links a{color:rgba(255,255,255,0.25);text-decoration:none;font-size:13px;transition:color .15s;font-weight:300}
+.footer-links a:hover{color:var(--violet-light)}
+
+@media(max-width:600px){
+  nav{padding:0 20px}
+  h1{font-size:36px;letter-spacing:-1px}
+  footer{padding:32px 20px}
+}
+</style>
+</head>
+<body>
+
+<nav>
+  <a href="/" class="logo">
+    <div class="logo-mark">
+      <svg viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+    </div>
+    ChurchPost
+  </a>
+  <a href="/" class="nav-btn">← Back to home</a>
+</nav>
+
+<main>
+  <div class="bg-mesh"></div>
+  <div class="card">
+    <div class="check-wrap">
+      <svg viewBox="0 0 24 24">
+        <polyline class="check-path" points="4 12 9 17 20 6"/>
+      </svg>
+    </div>
+
+    <div class="eyebrow"><span class="eyebrow-dot"></span> Request received</div>
+    <h1>You're on the<br><em>list.</em></h1>
+    <p class="sub">Thanks for your interest in ChurchPost. We'll review your request and reach out within 24 hours.</p>
+
+    <div class="next-steps">
+      <div class="step">
+        <div class="step-num">1</div>
+        <div class="step-text">
+          <strong>Check your inbox</strong>
+          <span>You'll hear from us at the email you provided within 24 hours.</span>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">2</div>
+        <div class="step-text">
+          <strong>We'll set up your account</strong>
+          <span>Once approved, we'll get you onboarded and connected to your platforms.</span>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">3</div>
+        <div class="step-text">
+          <strong>Start scheduling</strong>
+          <span>Create, schedule, and publish to all your platforms from one place.</span>
+        </div>
+      </div>
+    </div>
+
+    <a href="/" class="btn-home">
+      <svg viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+      Back to ChurchPost
+    </a>
+  </div>
+</main>
+
+<footer>
+  <div class="footer-inner">
+    <div class="footer-copy">© 2026 ChurchPost. All rights reserved.</div>
+    <div class="footer-links">
+      <a href="/privacy.html">Privacy</a>
+      <a href="/terms.html">Terms</a>
+      <a href="/#contact">Contact</a>
+    </div>
+  </div>
+</footer>
+
+</body>
+</html>

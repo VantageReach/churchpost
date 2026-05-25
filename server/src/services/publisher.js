@@ -16,6 +16,22 @@ function fbPermalink(externalId, pageId) {
   return `https://www.facebook.com/photo/?fbid=${externalId}`;
 }
 
+async function igWaitForContainer(containerId, token, timeoutMs = 30_000) {
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    const res = await axios.get(`${FB}/${containerId}`, {
+      params: { fields: "status_code,status", access_token: token },
+    });
+    const { status_code, status } = res.data;
+    if (status_code === "FINISHED") return;
+    if (status_code === "ERROR" || status_code === "EXPIRED") {
+      throw new Error(`Instagram container failed with status: ${status_code}${status ? ` — ${status}` : ""}`);
+    }
+    await new Promise((r) => setTimeout(r, 2000));
+  }
+  throw new Error("Instagram container timed out waiting to be ready.");
+}
+
 async function igPermalink(mediaId, token) {
   try {
     const res = await axios.get(`${FB}/${mediaId}`, {
@@ -180,6 +196,7 @@ async function publishInstagram(post, account) {
     } else {
       throw new Error("Instagram Story requires a photo or video.");
     }
+    await igWaitForContainer(containerId, token);
     const publishRes = await axios.post(`${FB}/${igId}/media_publish`, null, {
       params: { creation_id: containerId, access_token: token },
     });
@@ -197,6 +214,7 @@ async function publishInstagram(post, account) {
         access_token: token,
       },
     });
+    await igWaitForContainer(res.data.id, token);
     const publishRes = await axios.post(`${FB}/${igId}/media_publish`, null, {
       params: { creation_id: res.data.id, access_token: token },
     });
@@ -216,6 +234,7 @@ async function publishInstagram(post, account) {
             access_token: token,
           },
         });
+        await igWaitForContainer(r.data.id, token);
         return r.data.id;
       })
     );
@@ -227,6 +246,7 @@ async function publishInstagram(post, account) {
         access_token: token,
       },
     });
+    await igWaitForContainer(carRes.data.id, token);
     const publishRes = await axios.post(`${FB}/${igId}/media_publish`, null, {
       params: { creation_id: carRes.data.id, access_token: token },
     });
@@ -242,6 +262,7 @@ async function publishInstagram(post, account) {
     const res = await axios.post(`${FB}/${igId}/media`, null, {
       params: { image_url: getBestUrl(images[0], "instagram", "feed_post"), caption, access_token: token },
     });
+    await igWaitForContainer(res.data.id, token);
     const publishRes = await axios.post(`${FB}/${igId}/media_publish`, null, {
       params: { creation_id: res.data.id, access_token: token },
     });
@@ -254,12 +275,14 @@ async function publishInstagram(post, account) {
       const r = await axios.post(`${FB}/${igId}/media`, null, {
         params: { image_url: getBestUrl(img, "instagram", "feed_post"), is_carousel_item: true, access_token: token },
       });
+      await igWaitForContainer(r.data.id, token);
       return r.data.id;
     })
   );
   const carRes = await axios.post(`${FB}/${igId}/media`, null, {
     params: { media_type: "CAROUSEL", children: itemIds.join(","), caption, access_token: token },
   });
+  await igWaitForContainer(carRes.data.id, token);
   const publishRes = await axios.post(`${FB}/${igId}/media_publish`, null, {
     params: { creation_id: carRes.data.id, access_token: token },
   });

@@ -243,7 +243,7 @@ router.post("/:id/publish", requireOrgRole("ORG_ADMIN", "EDITOR"), async (req, r
 
     // Enqueue with high priority — worker will process it immediately
     await publishQueue.add("publish", { postId: post.id }, {
-      jobId: `publish-${post.id}`,
+      jobId: `publish-${post.id}-${Date.now()}`,
       priority: 1,
       attempts: 3,
       backoff: { type: "exponential", delay: 5000 },

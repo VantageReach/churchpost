@@ -18,6 +18,7 @@ import {
   Eye,
   Play,
   Bookmark,
+  Loader2,
 } from "lucide-react";
 
 const PLATFORM_ICONS = {
@@ -131,7 +132,7 @@ function InlineMetrics({ postMetrics, platforms }) {
   );
 }
 
-function PostRow({ post, onDelete, onPublish, onEdit }) {
+function PostRow({ post, onDelete, onPublish, onEdit, isPublishing }) {
   const firstCaption = Object.values(post.captions ?? {})[0] ?? "";
   const scheduledLabel = post.scheduledAt
     ? new Date(post.scheduledAt).toLocaleString("en-US", {
@@ -241,10 +242,14 @@ function PostRow({ post, onDelete, onPublish, onEdit }) {
         {(post.status === "DRAFT" || post.status === "SCHEDULED" || post.status === "FAILED" || post.status === "PARTIAL") && (
           <button
             onClick={() => onPublish(post.id)}
-            className="p-1.5 rounded-lg text-gray-300 hover:text-indigo-600 hover:bg-indigo-50 transition-colors"
-            title="Retry publish"
+            disabled={isPublishing}
+            className="p-1.5 rounded-lg text-gray-300 hover:text-indigo-600 hover:bg-indigo-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            title={isPublishing ? "Publishing…" : "Retry publish"}
           >
-            <Send className="h-3.5 w-3.5" />
+            {isPublishing
+              ? <Loader2 className="h-3.5 w-3.5 animate-spin text-indigo-500" />
+              : <Send className="h-3.5 w-3.5" />
+            }
           </button>
         )}
         <button
@@ -288,6 +293,8 @@ export default function Posts() {
   if (statusFilter !== "All") filters.status = statusFilter;
   if (platformFilter !== "All") filters.platform = platformFilter;
 
+  const [publishingId, setPublishingId] = useState(null);
+
   const { data, isLoading } = usePosts(filters);
   const deletePost = useDeletePost();
   const publishPost = usePublishPost();
@@ -298,7 +305,10 @@ export default function Posts() {
   }
 
   function handlePublish(id) {
-    publishPost.mutate(id);
+    setPublishingId(id);
+    publishPost.mutate(id, {
+      onSettled: () => setPublishingId(null),
+    });
   }
 
   function handleEdit(post) {
@@ -390,7 +400,7 @@ export default function Posts() {
         ) : (
           <div className="bg-white rounded-2xl m-3 lg:m-6 overflow-hidden border border-gray-100 shadow-sm">
             {posts.map((post) => (
-              <PostRow key={post.id} post={post} onDelete={handleDelete} onPublish={handlePublish} onEdit={handleEdit} />
+              <PostRow key={post.id} post={post} onDelete={handleDelete} onPublish={handlePublish} onEdit={handleEdit} isPublishing={publishingId === post.id} />
             ))}
           </div>
         )}

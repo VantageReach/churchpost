@@ -530,7 +530,7 @@ export async function publishPost(postId) {
   let failCount = 0;
 
   for (const platform of post.platforms) {
-    const account = accounts.find((a) => a.platform === platform);
+    let account = accounts.find((a) => a.platform === platform);
 
     if (!account) {
       platformResults.push({ platform, status: "failed", error: `No connected ${platform} account` });

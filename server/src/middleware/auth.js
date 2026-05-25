@@ -1,4 +1,4 @@
-import { requireAuth, getAuth } from "@clerk/express";
+import { requireAuth, getAuth, clerkClient } from "@clerk/express";
 import prisma from "../lib/prisma.js";
 
 // Enforce a valid Clerk session
@@ -87,10 +87,18 @@ export async function resolveOrgAndUser(req, res, next) {
       );
     }
 
-    // Sync name from Clerk if it was never set or has changed
-    const clerkName = [sessionClaims?.firstName, sessionClaims?.lastName]
+    // Sync name from Clerk session claims, falling back to Clerk API if still "New User"
+    let clerkName = [sessionClaims?.firstName, sessionClaims?.lastName]
       .filter(Boolean)
       .join(" ") || sessionClaims?.fullName;
+    if (!clerkName && orgUser.name === "New User") {
+      try {
+        const clerkUser = await clerkClient.users.getUser(userId);
+        clerkName = [clerkUser.firstName, clerkUser.lastName].filter(Boolean).join(" ")
+          || clerkUser.username
+          || "";
+      } catch {}
+    }
     if (clerkName && orgUser.name !== clerkName) {
       orgUser = await prisma.orgUser.update({
         where: { id: orgUser.id },

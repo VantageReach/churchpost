@@ -581,8 +581,11 @@ export async function publishPost(postId) {
       platformResults.push({ platform, status: "published", externalId: result.externalId, permalink: result.permalink ?? null, publishedAt: new Date() });
       successCount++;
     } catch (err) {
-      const error = err?.response?.data?.error?.message || err.message;
-      console.error(`[Publisher] ${platform} failed for post ${postId}:`, error);
+      const metaErr = err?.response?.data?.error;
+      const error = metaErr
+        ? `${metaErr.message} (code ${metaErr.code}, type ${metaErr.type})`
+        : err.message;
+      console.error(`[Publisher] ${platform} failed for post ${postId}:`, err?.response?.data ?? err.message);
       platformResults.push({ platform, status: "failed", error });
       failCount++;
     }

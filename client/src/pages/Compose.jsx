@@ -210,18 +210,27 @@ export default function Compose() {
     if (!hasCaption) { setError("Please write a caption for at least one platform."); return; }
     if (platforms.length === 0) { setError("Please select at least one platform."); return; }
 
+    const payload = {
+      title: title || null,
+      captions,
+      platforms,
+      formats,
+      meta: Object.keys(postMeta).length ? postMeta : null,
+      status: "DRAFT",
+      scheduledAt: null,
+      mediaAssets,
+    };
+
     try {
-      const post = await createPost.mutateAsync({
-        title: title || null,
-        captions,
-        platforms,
-        formats,
-        meta: Object.keys(postMeta).length ? postMeta : null,
-        status: "DRAFT",
-        scheduledAt: null,
-        mediaAssets,
-      });
-      await publishPost.mutateAsync(post.id);
+      let postId;
+      if (isEditing) {
+        await updatePost.mutateAsync({ id: editPost.id, ...payload });
+        postId = editPost.id;
+      } else {
+        const post = await createPost.mutateAsync(payload);
+        postId = post.id;
+      }
+      await publishPost.mutateAsync(postId);
       navigate("/posts");
     } catch (err) {
       setError(err?.response?.data?.error || "Failed to publish post.");

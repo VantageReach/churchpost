@@ -4,7 +4,7 @@ import prisma from "../../lib/prisma.js";
 import { encrypt, decrypt } from "../../lib/encryption.js";
 import { requireOrgRole } from "../../middleware/auth.js";
 
-const FB_VERSION = "v19.0";
+const FB_VERSION = "v21.0";
 const FB_BASE = `https://graph.facebook.com/${FB_VERSION}`;
 const FB_AUTH_URL = `https://www.facebook.com/${FB_VERSION}/dialog/oauth`;
 const SCOPES = "pages_show_list,pages_manage_posts,pages_read_engagement,instagram_basic,instagram_content_publish,public_profile";

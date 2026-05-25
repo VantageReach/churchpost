@@ -3,7 +3,7 @@ import prisma from "../lib/prisma.js";
 import { decrypt, encrypt } from "../lib/encryption.js";
 import { enqueuePostMetricsSync } from "../workers/analyticsWorker.js";
 
-const FB = "https://graph.facebook.com/v19.0";
+const FB = "https://graph.facebook.com/v21.0";
 
 function fbPermalink(externalId, pageId) {
   if (!externalId) return null;

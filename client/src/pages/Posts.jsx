@@ -241,9 +241,8 @@ function PostRow({ post, onDelete, onPublish, onEdit, isPublishing }) {
         )}
         {(post.status === "DRAFT" || post.status === "SCHEDULED" || post.status === "FAILED" || post.status === "PARTIAL") && (
           <button
-            onClick={() => onPublish(post.id)}
-            disabled={isPublishing}
-            className="p-1.5 rounded-lg text-gray-300 hover:text-indigo-600 hover:bg-indigo-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            onClick={() => !isPublishing && onPublish(post.id)}
+            className="p-1.5 rounded-lg text-gray-300 hover:text-indigo-600 hover:bg-indigo-50 transition-colors"
             title={isPublishing ? "Publishing…" : "Retry publish"}
           >
             {isPublishing

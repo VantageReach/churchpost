@@ -121,7 +121,7 @@ export default function Compose() {
     const targetPlatform = platform ?? platforms[0];
     const targetFormat = format ?? formats[targetPlatform];
     const config = getFormatConfig(targetPlatform, targetFormat);
-    const targetRatio = ratio ?? config?.ratios?.[config.ratios.length - 1] ?? "9:16";
+    const targetRatio = ratio ?? config?.recommendedRatio ?? config?.ratios?.[0] ?? "9:16";
     setVideoTarget({ asset, platform: targetPlatform, format: targetFormat, ratio: targetRatio });
   }
 
@@ -139,7 +139,7 @@ export default function Compose() {
     const targetPlatform = platform ?? platforms[0];
     const targetFormat = format ?? formats[targetPlatform];
     const config = getFormatConfig(targetPlatform, targetFormat);
-    const targetRatio = ratio ?? config?.ratios?.[config.ratios.length - 1] ?? "1:1";
+    const targetRatio = ratio ?? config?.recommendedRatio ?? config?.ratios?.[0] ?? "1:1";
     setCropTarget({ asset, platform: targetPlatform, format: targetFormat, ratio: targetRatio });
   }
 

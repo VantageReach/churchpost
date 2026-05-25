@@ -183,6 +183,11 @@ function PostRow({ post, onDelete, onPublish, onEdit }) {
             ⚠ {post.failureReason}
           </p>
         )}
+        {post.status === "PARTIAL" && (post.platformResults ?? []).filter((r) => r.status === "failed").map((r) => (
+          <p key={r.platform} className="text-[11px] text-red-500 mt-0.5 truncate">
+            ⚠ {r.platform}: {r.error}
+          </p>
+        ))}
         <div className="flex items-center gap-1.5 mt-2 flex-wrap">
           {(post.platforms ?? []).map((p) => (
             <PlatformBadge key={p} platform={p} size="sm" />

@@ -515,21 +515,33 @@ async function publishTikTok(post, account) {
 export async function publishPost(postId) {
   const post = await prisma.post.findUnique({
     where: { id: postId },
-    include: { mediaAssets: { include: { variants: true } } },
+    include: { mediaAssets: { include: { variants: true } }, platformResults: true },
   });
 
   if (!post) throw new Error(`Post ${postId} not found`);
   if (post.status === "PUBLISHED") return { skipped: true };
 
+  // For PARTIAL retries: carry forward already-successful results, only retry failed platforms
+  const alreadySucceeded = (post.platformResults ?? []).filter((r) => r.status === "published");
+  const succeededPlatforms = new Set(alreadySucceeded.map((r) => r.platform));
+  const platformsToAttempt = post.platforms.filter((p) => !succeededPlatforms.has(p));
+
   const accounts = await prisma.platformAccount.findMany({
-    where: { organizationId: post.organizationId, platform: { in: post.platforms } },
+    where: { organizationId: post.organizationId, platform: { in: platformsToAttempt } },
   });
 
-  const platformResults = [];
-  let successCount = 0;
+  // Seed results with the platforms that already published successfully
+  const platformResults = alreadySucceeded.map((r) => ({
+    platform: r.platform,
+    status: "published",
+    externalId: r.externalId,
+    permalink: r.permalink,
+    publishedAt: r.publishedAt,
+  }));
+  let successCount = alreadySucceeded.length;
   let failCount = 0;
 
-  for (const platform of post.platforms) {
+  for (const platform of platformsToAttempt) {
     let account = accounts.find((a) => a.platform === platform);
 
     if (!account) {

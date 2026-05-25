@@ -218,6 +218,9 @@ async function publishInstagram(post, account) {
   const images = (post.mediaAssets ?? []).filter((a) => a.type === "IMAGE");
   const videos = (post.mediaAssets ?? []).filter((a) => a.type === "VIDEO");
 
+  console.log(`[Instagram] igId=${igId} format=${format} images=${images.length} videos=${videos.length}`);
+  if (images[0]) console.log(`[Instagram] image_url=${getBestUrl(images[0], "instagram", format)}`);
+
   // ── Story ──
   if (format === "story") {
     let containerId;

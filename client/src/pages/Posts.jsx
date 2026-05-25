@@ -229,20 +229,20 @@ function PostRow({ post, onDelete, onPublish, onEdit }) {
         <span className="text-[11px] text-gray-400 mr-2">
           {post.author?.name}
         </span>
-        {(post.status === "DRAFT" || post.status === "SCHEDULED") && (
+        {(post.status === "DRAFT" || post.status === "SCHEDULED" || post.status === "FAILED" || post.status === "PARTIAL") && (
           <button
             onClick={() => onEdit(post)}
             className="p-1.5 rounded-lg text-gray-300 hover:text-amber-600 hover:bg-amber-50 transition-colors"
-            title="Edit post"
+            title={post.status === "FAILED" || post.status === "PARTIAL" ? "Edit & retry" : "Edit post"}
           >
             <Pencil className="h-3.5 w-3.5" />
           </button>
         )}
-        {(post.status === "DRAFT" || post.status === "SCHEDULED" || post.status === "FAILED") && (
+        {(post.status === "DRAFT" || post.status === "SCHEDULED" || post.status === "FAILED" || post.status === "PARTIAL") && (
           <button
             onClick={() => onPublish(post.id)}
             className="p-1.5 rounded-lg text-gray-300 hover:text-indigo-600 hover:bg-indigo-50 transition-colors"
-            title="Publish now"
+            title="Retry publish"
           >
             <Send className="h-3.5 w-3.5" />
           </button>

@@ -87,6 +87,17 @@ export async function resolveOrgAndUser(req, res, next) {
       );
     }
 
+    // Sync name from Clerk if it was never set or has changed
+    const clerkName = [sessionClaims?.firstName, sessionClaims?.lastName]
+      .filter(Boolean)
+      .join(" ") || sessionClaims?.fullName;
+    if (clerkName && orgUser.name !== clerkName) {
+      orgUser = await prisma.orgUser.update({
+        where: { id: orgUser.id },
+        data: { name: clerkName },
+      });
+    }
+
     req.orgUser = orgUser;
 
     // Check platform-level super admin

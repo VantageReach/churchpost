@@ -74,12 +74,18 @@ async function refreshMetaPageToken(account) {
   const freshUserToken = extendRes.data.access_token;
   const expiresIn = extendRes.data.expires_in;
 
-  // Get fresh page token
+  // Get fresh page token — match stored Facebook page ID to avoid picking the wrong page
   const pagesRes = await axios.get(`${FB}/me/accounts`, {
     params: { access_token: freshUserToken, fields: "id,name,access_token" },
   });
-  const page = pagesRes.data.data?.[0];
-  if (!page) throw new Error("No Facebook page found during token refresh.");
+  const pages = pagesRes.data.data ?? [];
+  if (!pages.length) throw new Error("No Facebook page found during token refresh.");
+
+  const fbAccount = await prisma.platformAccount.findUnique({
+    where: { organizationId_platform: { organizationId: account.organizationId, platform: "facebook" } },
+  });
+  const page = (fbAccount ? pages.find((p) => p.id === fbAccount.accountId) : null) ?? pages[0];
+  console.log(`[Publisher] Refreshing token for page: ${page.name} (${page.id})`);
 
   // Persist the refreshed tokens for both facebook and instagram accounts
   const newExpiry = expiresIn ? new Date(Date.now() + expiresIn * 1000) : null;
@@ -104,7 +110,14 @@ async function refreshMetaPageToken(account) {
         where: { organizationId_platform: { organizationId: account.organizationId, platform: "instagram" } },
         data: { accountId: newIgId },
       });
-      console.log(`[Publisher] Instagram account ID refreshed: ${newIgId}`);
+      try {
+        const igDetail = await axios.get(`${FB}/${newIgId}`, {
+          params: { fields: "id,username", access_token: page.access_token },
+        });
+        console.log(`[Publisher] Instagram account refreshed: @${igDetail.data.username} (${newIgId})`);
+      } catch {
+        console.log(`[Publisher] Instagram account ID refreshed: ${newIgId}`);
+      }
     }
   } catch {}
 

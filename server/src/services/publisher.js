@@ -92,14 +92,30 @@ async function refreshMetaPageToken(account) {
     },
   });
 
+  // Also refresh the stored Instagram Business Account ID in case it changed
+  try {
+    const igRes = await axios.get(`${FB}/${page.id}`, {
+      params: { fields: "instagram_business_account", access_token: page.access_token },
+    });
+    const igId = igRes.data.instagram_business_account?.id;
+    if (igId) {
+      await prisma.platformAccount.update({
+        where: { organizationId_platform: { organizationId: account.organizationId, platform: "instagram" } },
+        data: { accountId: igId },
+      });
+      console.log(`[Publisher] Instagram account ID refreshed: ${igId}`);
+    }
+  } catch {}
+
   console.log(`[Publisher] Meta tokens refreshed for org ${account.organizationId}`);
   return page.access_token;
 }
 
 function isMetaAuthError(err) {
   const code = err?.response?.data?.error?.code;
+  const subcode = err?.response?.data?.error?.error_subcode;
   const type = err?.response?.data?.error?.type;
-  return type === "OAuthException" || code === 190 || code === 102;
+  return type === "OAuthException" || code === 190 || code === 102 || (code === 100 && subcode === 33);
 }
 
 // ── Facebook ──────────────────────────────────────────────────────────────────

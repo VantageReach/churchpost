@@ -93,22 +93,23 @@ async function refreshMetaPageToken(account) {
   });
 
   // Also refresh the stored Instagram Business Account ID in case it changed
+  let newIgId = null;
   try {
     const igRes = await axios.get(`${FB}/${page.id}`, {
       params: { fields: "instagram_business_account", access_token: page.access_token },
     });
-    const igId = igRes.data.instagram_business_account?.id;
-    if (igId) {
+    newIgId = igRes.data.instagram_business_account?.id ?? null;
+    if (newIgId) {
       await prisma.platformAccount.update({
         where: { organizationId_platform: { organizationId: account.organizationId, platform: "instagram" } },
-        data: { accountId: igId },
+        data: { accountId: newIgId },
       });
-      console.log(`[Publisher] Instagram account ID refreshed: ${igId}`);
+      console.log(`[Publisher] Instagram account ID refreshed: ${newIgId}`);
     }
   } catch {}
 
   console.log(`[Publisher] Meta tokens refreshed for org ${account.organizationId}`);
-  return page.access_token;
+  return { pageToken: page.access_token, igId: newIgId };
 }
 
 function isMetaAuthError(err) {
@@ -577,8 +578,8 @@ export async function publishPost(postId) {
         } catch (err) {
           if (isMetaAuthError(err)) {
             console.log(`[Publisher] Facebook auth error — refreshing token and retrying`);
-            const freshToken = await refreshMetaPageToken(account);
-            account = { ...account, accessToken: encrypt(freshToken) };
+            const { pageToken } = await refreshMetaPageToken(account);
+            account = { ...account, accessToken: encrypt(pageToken) };
             result = await publishFacebook(post, account);
           } else throw err;
         }
@@ -588,8 +589,8 @@ export async function publishPost(postId) {
         } catch (err) {
           if (isMetaAuthError(err)) {
             console.log(`[Publisher] Instagram auth error — refreshing token and retrying`);
-            const freshToken = await refreshMetaPageToken(account);
-            account = { ...account, accessToken: encrypt(freshToken) };
+            const { pageToken, igId } = await refreshMetaPageToken(account);
+            account = { ...account, accessToken: encrypt(pageToken), ...(igId && { accountId: igId }) };
             result = await publishInstagram(post, account);
           } else throw err;
         }

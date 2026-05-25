@@ -56,6 +56,52 @@ function getBestUrl(asset, platform, format) {
   return mediaUrl(variant?.url ?? asset.originalUrl ?? asset.url);
 }
 
+// ── Meta token refresh ────────────────────────────────────────────────────────
+// Uses the stored long-lived user token to get a fresh page token silently.
+async function refreshMetaPageToken(account) {
+  if (!account.refreshToken) throw new Error("No Meta refresh token — please reconnect Facebook & Instagram.");
+  const userToken = decrypt(account.refreshToken);
+
+  // Extend the user token first (keeps it alive another 60 days)
+  const extendRes = await axios.get(`${FB}/oauth/access_token`, {
+    params: {
+      grant_type: "fb_exchange_token",
+      client_id: process.env.META_APP_ID,
+      client_secret: process.env.META_APP_SECRET,
+      fb_exchange_token: userToken,
+    },
+  });
+  const freshUserToken = extendRes.data.access_token;
+  const expiresIn = extendRes.data.expires_in;
+
+  // Get fresh page token
+  const pagesRes = await axios.get(`${FB}/me/accounts`, {
+    params: { access_token: freshUserToken, fields: "id,name,access_token" },
+  });
+  const page = pagesRes.data.data?.[0];
+  if (!page) throw new Error("No Facebook page found during token refresh.");
+
+  // Persist the refreshed tokens for both facebook and instagram accounts
+  const newExpiry = expiresIn ? new Date(Date.now() + expiresIn * 1000) : null;
+  await prisma.platformAccount.updateMany({
+    where: { organizationId: account.organizationId, platform: { in: ["facebook", "instagram"] } },
+    data: {
+      accessToken: encrypt(page.access_token),
+      refreshToken: encrypt(freshUserToken),
+      expiresAt: newExpiry,
+    },
+  });
+
+  console.log(`[Publisher] Meta tokens refreshed for org ${account.organizationId}`);
+  return page.access_token;
+}
+
+function isMetaAuthError(err) {
+  const code = err?.response?.data?.error?.code;
+  const type = err?.response?.data?.error?.type;
+  return type === "OAuthException" || code === 190 || code === 102;
+}
+
 // ── Facebook ──────────────────────────────────────────────────────────────────
 
 async function publishFacebook(post, account) {
@@ -494,9 +540,29 @@ export async function publishPost(postId) {
 
     try {
       let result;
-      if (platform === "facebook") result = await publishFacebook(post, account);
-      else if (platform === "instagram") result = await publishInstagram(post, account);
-      else if (platform === "youtube") result = await publishYouTube(post, account);
+      if (platform === "facebook") {
+        try {
+          result = await publishFacebook(post, account);
+        } catch (err) {
+          if (isMetaAuthError(err)) {
+            console.log(`[Publisher] Facebook auth error — refreshing token and retrying`);
+            const freshToken = await refreshMetaPageToken(account);
+            account = { ...account, accessToken: encrypt(freshToken) };
+            result = await publishFacebook(post, account);
+          } else throw err;
+        }
+      } else if (platform === "instagram") {
+        try {
+          result = await publishInstagram(post, account);
+        } catch (err) {
+          if (isMetaAuthError(err)) {
+            console.log(`[Publisher] Instagram auth error — refreshing token and retrying`);
+            const freshToken = await refreshMetaPageToken(account);
+            account = { ...account, accessToken: encrypt(freshToken) };
+            result = await publishInstagram(post, account);
+          } else throw err;
+        }
+      } else if (platform === "youtube") result = await publishYouTube(post, account);
       else if (platform === "tiktok") result = await publishTikTok(post, account);
       else throw new Error(`Publisher not implemented for ${platform}`);
 

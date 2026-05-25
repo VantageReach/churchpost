@@ -78,11 +78,13 @@ publicMetaRouter.get("/callback", async (req, res) => {
     // Use the first page (most orgs have one church page)
     const page = pages[0];
 
-    // Upsert Facebook page connection
+    // Upsert Facebook page connection — store long-lived user token as refreshToken
+    // so the publisher can get fresh page tokens without user re-auth
     await prisma.platformAccount.upsert({
       where: { organizationId_platform: { organizationId: orgId, platform: "facebook" } },
       update: {
         accessToken: encrypt(page.access_token),
+        refreshToken: encrypt(longToken),
         accountName: page.name,
         accountId: page.id,
         expiresAt: expiresIn ? new Date(Date.now() + expiresIn * 1000) : null,
@@ -91,6 +93,7 @@ publicMetaRouter.get("/callback", async (req, res) => {
         organizationId: orgId,
         platform: "facebook",
         accessToken: encrypt(page.access_token),
+        refreshToken: encrypt(longToken),
         accountName: page.name,
         accountId: page.id,
         expiresAt: expiresIn ? new Date(Date.now() + expiresIn * 1000) : null,
@@ -117,7 +120,8 @@ publicMetaRouter.get("/callback", async (req, res) => {
         await prisma.platformAccount.upsert({
           where: { organizationId_platform: { organizationId: orgId, platform: "instagram" } },
           update: {
-            accessToken: encrypt(page.access_token), // IG publishing uses page token
+            accessToken: encrypt(page.access_token),
+            refreshToken: encrypt(longToken),
             accountName: `@${igUsername}`,
             accountId: igAccount.id,
             expiresAt: null,
@@ -126,6 +130,7 @@ publicMetaRouter.get("/callback", async (req, res) => {
             organizationId: orgId,
             platform: "instagram",
             accessToken: encrypt(page.access_token),
+            refreshToken: encrypt(longToken),
             accountName: `@${igUsername}`,
             accountId: igAccount.id,
             expiresAt: null,

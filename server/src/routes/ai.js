@@ -341,7 +341,7 @@ router.post("/generate-image", requireOrgRole("ORG_ADMIN", "EDITOR"), async (req
       return res.status(503).json({ error: "GEMINI_API_KEY is not configured. Add it to your Railway environment variables." });
     }
 
-    const enhancedPrompt = `${prompt.trim()}. High quality photo or illustration. Suitable for a Christian church social media graphic. Uplifting, professional aesthetic. No text or words in the image.`;
+    const enhancedPrompt = `${prompt.trim()}. High quality, visually striking image suitable for a Christian church social media post. Uplifting, professional aesthetic.`;
 
     const geminiRes = await axios.post(
       `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-preview-image-generation:generateContent?key=${process.env.GEMINI_API_KEY}`,

@@ -388,7 +388,6 @@ router.post("/generate-graphic", requireOrgRole("ORG_ADMIN", "EDITOR"), async (r
         n: 1,
         size: "1024x1024",
         quality: "standard",
-        response_format: "b64_json",
       },
       {
         headers: {
@@ -399,13 +398,17 @@ router.post("/generate-graphic", requireOrgRole("ORG_ADMIN", "EDITOR"), async (r
       }
     );
 
-    const b64 = data?.data?.[0]?.b64_json;
-    if (!b64) {
+    const imageUrl = data?.data?.[0]?.url;
+    if (!imageUrl) {
       console.error("[AI Graphic] No image in DALL-E response:", JSON.stringify(data).slice(0, 200));
       return res.status(500).json({ error: "Graphic generation returned no result. Try rephrasing your prompt." });
     }
 
-    res.json({ url: `data:image/png;base64,${b64}` });
+    // Fetch image server-side and return as base64 data URL — avoids client CORS issues
+    const imgRes = await axios.get(imageUrl, { responseType: "arraybuffer", timeout: 30000 });
+    const b64 = Buffer.from(imgRes.data).toString("base64");
+    const mime = imgRes.headers["content-type"] || "image/png";
+    res.json({ url: `data:${mime};base64,${b64}` });
   } catch (err) {
     const openaiErr = err?.response?.data?.error;
     const detail = openaiErr?.message || err.message;

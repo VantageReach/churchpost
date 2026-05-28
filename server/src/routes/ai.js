@@ -231,6 +231,11 @@ router.get("/proactive", requireOrgRole("ORG_ADMIN", "EDITOR", "VIEWER"), async 
           .join("\n")
       : "";
 
+    const todayEvents = featuredEvents.filter((e) => e.daysUntil === 0);
+    const todayNote = todayEvents.length
+      ? `IMPORTANT: ${todayEvents.map((e) => `${e.emoji} ${e.label}`).join(" and ")} is TODAY. Put this first in your response and make the caption timely and ready to post immediately.\n\n`
+      : "";
+
     const message = await getAnthropic().messages.create({
       model: "claude-sonnet-4-6",
       max_tokens: 1500,
@@ -238,7 +243,7 @@ router.get("/proactive", requireOrgRole("ORG_ADMIN", "EDITOR", "VIEWER"), async 
       messages: [
         {
           role: "user",
-          content: `Here are upcoming calendar events for the next 21 days:
+          content: `${todayNote}Here are upcoming calendar events for the next 21 days:
 
 ${nationalList}${pcList}
 

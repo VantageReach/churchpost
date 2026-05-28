@@ -323,16 +323,20 @@ export function getCalendarEntries(year, filters = {}) {
  * @param {object} filters
  */
 export function getUpcomingEntries(from, days = 60, filters = {}) {
-  const to = new Date(from);
+  // Normalize to start of day so today's events are always included
+  const fromDay = new Date(from);
+  fromDay.setHours(0, 0, 0, 0);
+
+  const to = new Date(fromDay);
   to.setDate(to.getDate() + days);
 
-  const years = new Set([from.getFullYear(), to.getFullYear()]);
+  const years = new Set([fromDay.getFullYear(), to.getFullYear()]);
   const all = [];
   for (const year of years) {
     all.push(...getCalendarEntries(year, filters));
   }
 
-  return all.filter((e) => e.date >= from && e.date <= to).sort((a, b) => a.date - b.date);
+  return all.filter((e) => e.date >= fromDay && e.date <= to).sort((a, b) => a.date - b.date);
 }
 
 export default nationalCalendar;

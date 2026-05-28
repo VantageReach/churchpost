@@ -1297,9 +1297,10 @@ export default function GraphicBuilderModal({ open, onClose, onExport, onFullGra
                 onClick={() => { setShowAiMenu((v) => !v); setBgAiError(null); }}
                 className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12px] font-medium border transition-colors shadow-sm"
                 style={{ background: showAiMenu ? "#4f46e5" : "white", color: showAiMenu ? "white" : "#6366f1", borderColor: "#a5b4fc" }}
+                title="Generate an AI photo to use as the canvas background"
               >
                 {bgAiGenerating ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5" />}
-                Generate image
+                AI background
               </button>
               {showAiMenu && (
                 <div className="absolute bottom-full mb-2 left-0 bg-white rounded-xl border border-indigo-100 shadow-xl p-3 z-50 w-72">
@@ -1352,20 +1353,19 @@ export default function GraphicBuilderModal({ open, onClose, onExport, onFullGra
                 </div>
               )}
             </div>
-            <input ref={imageFileRef} type="file" accept="image/*" className="hidden" onChange={(e) => { if (e.target.files[0]) addImageToCanvas(e.target.files[0]); }} />
-          </div>
-          {/* Full graphic generation link */}
-          {onFullGraphicGen && (
-            <div className="mt-3 flex justify-center">
+            {onFullGraphicGen && (
               <button
                 onClick={onFullGraphicGen}
-                className="flex items-center gap-1.5 text-[11px] font-medium text-violet-500 hover:text-violet-700 transition-colors"
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12px] font-semibold border transition-colors shadow-sm"
+                style={{ background: "#7c3aed", color: "white", borderColor: "#7c3aed" }}
+                title="Let AI design a complete graphic — poster, flyer, announcement"
               >
-                <Sparkles className="h-3 w-3" />
-                Want a fully designed graphic? Generate with AI →
+                <Sparkles className="h-3.5 w-3.5" />
+                AI full graphic
               </button>
-            </div>
-          )}
+            )}
+            <input ref={imageFileRef} type="file" accept="image/*" className="hidden" onChange={(e) => { if (e.target.files[0]) addImageToCanvas(e.target.files[0]); }} />
+          </div>
         </div>
 
         {/* Right panel — controls */}

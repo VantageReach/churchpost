@@ -369,50 +369,47 @@ router.post("/generate-image", requireOrgRole("ORG_ADMIN", "EDITOR"), async (req
   }
 });
 
-// POST /api/ai/generate-graphic — full designed graphic via Gemini 3 Pro Image
+// POST /api/ai/generate-graphic — full designed graphic via DALL-E 3
 router.post("/generate-graphic", requireOrgRole("ORG_ADMIN", "EDITOR"), async (req, res, next) => {
   try {
     const { prompt } = req.body;
     if (!prompt?.trim()) return res.status(400).json({ error: "prompt is required" });
-    if (!process.env.GEMINI_API_KEY) {
-      return res.status(503).json({ error: "GEMINI_API_KEY is not configured." });
+    if (!process.env.OPENAI_API_KEY) {
+      return res.status(503).json({ error: "OPENAI_API_KEY is not configured." });
     }
 
-    const enhancedPrompt = `You are a professional graphic designer creating social media content for a Christian church.
+    const enhancedPrompt = `A professional social media graphic for a Christian church. ${prompt.trim()}. Design it as a complete poster or flyer with bold typography, clear text hierarchy, decorative layout elements, and a polished look ready to post on Instagram or Facebook. Uplifting, warm aesthetic. Not a photograph — a designed graphic.`;
 
-Design a complete, polished social media graphic based on this request: "${prompt.trim()}"
-
-Requirements:
-- Professional typography with a clear text hierarchy (headline, subheading, body)
-- Beautiful, cohesive layout ready to post on Instagram or Facebook
-- Uplifting, warm, and welcoming church aesthetic
-- Include decorative design elements (borders, dividers, icons, textures)
-- High contrast so text is easy to read
-- Poster or flyer style — fully designed, not a raw photograph
-- No placeholder text — use realistic church copy based on the request`;
-
-    const geminiRes = await axios.post(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-pro-image:generateContent?key=${process.env.GEMINI_API_KEY}`,
+    const { data } = await axios.post(
+      "https://api.openai.com/v1/images/generations",
       {
-        contents: [{ parts: [{ text: enhancedPrompt }] }],
-        generationConfig: { responseModalities: ["IMAGE"] },
+        model: "dall-e-3",
+        prompt: enhancedPrompt,
+        n: 1,
+        size: "1024x1024",
+        quality: "standard",
+        response_format: "b64_json",
       },
-      { timeout: 90000 }
+      {
+        headers: {
+          Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
+          "Content-Type": "application/json",
+        },
+        timeout: 90000,
+      }
     );
 
-    const parts = geminiRes.data?.candidates?.[0]?.content?.parts ?? [];
-    const imagePart = parts.find((p) => p.inlineData?.data);
-    if (!imagePart) {
-      console.error("[AI Graphic] No image in response:", JSON.stringify(geminiRes.data).slice(0, 300));
+    const b64 = data?.data?.[0]?.b64_json;
+    if (!b64) {
+      console.error("[AI Graphic] No image in DALL-E response:", JSON.stringify(data).slice(0, 200));
       return res.status(500).json({ error: "Graphic generation returned no result. Try rephrasing your prompt." });
     }
 
-    res.json({ url: `data:${imagePart.inlineData.mimeType || "image/png"};base64,${imagePart.inlineData.data}` });
+    res.json({ url: `data:image/png;base64,${b64}` });
   } catch (err) {
-    const googleErr = err?.response?.data?.error;
-    const detail = googleErr?.message || err.message;
-    const status = err?.response?.status;
-    console.error("[AI Graphic] status:", status, "error:", JSON.stringify(googleErr ?? err.message));
+    const openaiErr = err?.response?.data?.error;
+    const detail = openaiErr?.message || err.message;
+    console.error("[AI Graphic] DALL-E error:", JSON.stringify(openaiErr ?? err.message));
     return res.status(500).json({ error: `Graphic generation failed: ${detail}` });
   }
 });

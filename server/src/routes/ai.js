@@ -344,26 +344,29 @@ router.post("/generate-image", requireOrgRole("ORG_ADMIN", "EDITOR"), async (req
     const enhancedPrompt = `${prompt.trim()}. High quality, visually striking image suitable for a Christian church social media post. Uplifting, professional aesthetic.`;
 
     const geminiRes = await axios.post(
-      `https://generativelanguage.googleapis.com/v1beta/models/imagen-3.0-generate-002:predict?key=${process.env.GEMINI_API_KEY}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp-image-generation:generateContent?key=${process.env.GEMINI_API_KEY}`,
       {
-        instances: [{ prompt: enhancedPrompt }],
-        parameters: { sampleCount: 1 },
+        contents: [{ parts: [{ text: enhancedPrompt }] }],
+        generationConfig: { responseModalities: ["IMAGE"] },
       },
       { timeout: 60000 }
     );
 
-    const prediction = geminiRes.data?.predictions?.[0];
-    if (!prediction?.bytesBase64Encoded) {
+    const parts = geminiRes.data?.candidates?.[0]?.content?.parts ?? [];
+    const imagePart = parts.find((p) => p.inlineData?.data);
+    if (!imagePart) {
       console.error("[AI Image] No image in response:", JSON.stringify(geminiRes.data).slice(0, 300));
       return res.status(500).json({ error: "Image generation returned no result. Try rephrasing your prompt." });
     }
 
     // Return as data URL — avoids CORS/tainted-canvas issues with Fabric.js
-    res.json({ url: `data:${prediction.mimeType || "image/png"};base64,${prediction.bytesBase64Encoded}` });
+    res.json({ url: `data:${imagePart.inlineData.mimeType || "image/png"};base64,${imagePart.inlineData.data}` });
   } catch (err) {
-    const detail = err?.response?.data?.error?.message;
-    console.error("[AI Image]", detail || err.message);
-    next(err);
+    const googleErr = err?.response?.data?.error;
+    const detail = googleErr?.message || err.message;
+    const status = err?.response?.status;
+    console.error("[AI Image] status:", status, "error:", JSON.stringify(googleErr ?? err.message));
+    return res.status(500).json({ error: `Image generation failed: ${detail}` });
   }
 });
 

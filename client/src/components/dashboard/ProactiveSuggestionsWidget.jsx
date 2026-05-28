@@ -6,6 +6,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import PlatformBadge from "../shared/PlatformBadge.jsx";
 import GraphicBuilderModal from "../graphicBuilder/GraphicBuilderModal.jsx";
 import { useOrgSettings } from "../../hooks/useOrgSettings.js";
+import api from "../../lib/api.js";
 
 const DEMO_SUGGESTIONS = [
   {
@@ -113,11 +114,18 @@ export default function ProactiveSuggestionsWidget() {
   const qc = useQueryClient();
   const navigate = useNavigate();
   const [graphicPrefill, setGraphicPrefill] = useState(null);
+  const [refreshing, setRefreshing] = useState(false);
 
   const isDemo = settings?.isDemo;
 
-  function refresh() {
-    qc.invalidateQueries({ queryKey: ["proactiveSuggestions"] });
+  async function refresh() {
+    setRefreshing(true);
+    try {
+      const { data: fresh } = await api.get("/ai/proactive?refresh=1");
+      qc.setQueryData(["proactiveSuggestions"], fresh);
+    } catch { /* ignore */ } finally {
+      setRefreshing(false);
+    }
   }
 
   function useInComposer(s) {
@@ -164,7 +172,7 @@ export default function ProactiveSuggestionsWidget() {
           className="p-1.5 rounded-lg text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-colors"
           title="Refresh ideas"
         >
-          <RefreshCw className={`h-3.5 w-3.5 ${isLoading ? "animate-spin" : ""}`} />
+          <RefreshCw className={`h-3.5 w-3.5 ${isLoading || refreshing ? "animate-spin" : ""}`} />
         </button>
       </div>
 

@@ -166,8 +166,17 @@ function TemplateThumbnail({ tpl, selected, onClick }) {
 }
 
 // ── Background controls ────────────────────────────────────────────────────
-function BackgroundControls({ bgType, setBgType, bgSolid, setBgSolid, bgGradient, setBgGradient, brandColors, onApplyBg, onPhotoUpload }) {
+function BackgroundControls({ bgType, setBgType, bgSolid, setBgSolid, bgGradient, setBgGradient, brandColors, onApplyBg, onPhotoUpload, onAiGenerate, aiGenerating }) {
   const fileRef = useRef(null);
+  const [showAiPrompt, setShowAiPrompt] = useState(false);
+  const [aiPrompt, setAiPrompt] = useState("");
+
+  function handleAiGenerate() {
+    if (!aiPrompt.trim()) return;
+    onAiGenerate(aiPrompt.trim());
+    setShowAiPrompt(false);
+    setAiPrompt("");
+  }
 
   return (
     <div className="space-y-4">
@@ -234,6 +243,50 @@ function BackgroundControls({ bgType, setBgType, bgSolid, setBgSolid, bgGradient
             Upload photo
           </button>
           <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={(e) => { if (e.target.files[0]) onPhotoUpload(e.target.files[0]); }} />
+
+          <div className="flex items-center gap-2 text-[10px] text-gray-300">
+            <div className="flex-1 h-px bg-gray-100" />
+            <span>or</span>
+            <div className="flex-1 h-px bg-gray-100" />
+          </div>
+
+          {!showAiPrompt ? (
+            <button
+              onClick={() => setShowAiPrompt(true)}
+              className="w-full py-2.5 rounded-xl border-2 border-dashed border-indigo-200 text-[12px] text-indigo-500 hover:border-indigo-300 hover:bg-indigo-50 transition-colors flex items-center justify-center gap-2"
+            >
+              <Sparkles className="h-4 w-4" />
+              Generate with AI
+            </button>
+          ) : (
+            <div className="space-y-2">
+              <textarea
+                value={aiPrompt}
+                onChange={(e) => setAiPrompt(e.target.value)}
+                placeholder="Describe the image… e.g. sunrise over a mountain, golden light"
+                rows={3}
+                className="w-full text-[12px] rounded-xl border border-gray-200 px-3 py-2 resize-none outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100"
+                autoFocus
+                onKeyDown={(e) => { if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) handleAiGenerate(); }}
+              />
+              <div className="flex gap-2">
+                <button
+                  onClick={() => { setShowAiPrompt(false); setAiPrompt(""); }}
+                  className="flex-1 py-1.5 rounded-lg text-[11px] font-medium text-gray-500 border border-gray-200 hover:bg-gray-50 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleAiGenerate}
+                  disabled={!aiPrompt.trim() || aiGenerating}
+                  className="flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-[11px] font-semibold text-white bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 transition-colors"
+                >
+                  {aiGenerating ? <Loader2 className="h-3 w-3 animate-spin" /> : <Sparkles className="h-3 w-3" />}
+                  {aiGenerating ? "Generating…" : "Generate"}
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       )}
 
@@ -735,15 +788,29 @@ export default function GraphicBuilderModal({ open, onClose, onExport, prefill }
   const [canUndo, setCanUndo] = useState(false);
   const [canRedo, setCanRedo] = useState(false);
   const [exporting, setExporting] = useState(false);
+  const [bgAiGenerating, setBgAiGenerating] = useState(false);
   const [mobilePanel, setMobilePanel] = useState("templates");
   const [showShapeMenu, setShowShapeMenu] = useState(false);
+  const [showAiMenu, setShowAiMenu] = useState(false);
+  const [aiMenuPrompt, setAiMenuPrompt] = useState("");
   const shapeMenuRef = useRef(null);
+  const aiMenuRef = useRef(null);
 
   const canvasElRef = useRef(null);
   const fabricRef = useRef(null);
   const historyRef = useRef({ states: [], index: -1 });
   const brandRef = useRef(null);
   const imageFileRef = useRef(null);
+
+  // Close floating menus on outside click
+  useEffect(() => {
+    function handleOutside(e) {
+      if (shapeMenuRef.current && !shapeMenuRef.current.contains(e.target)) setShowShapeMenu(false);
+      if (aiMenuRef.current && !aiMenuRef.current.contains(e.target)) setShowAiMenu(false);
+    }
+    document.addEventListener("mousedown", handleOutside);
+    return () => document.removeEventListener("mousedown", handleOutside);
+  }, []);
 
   const brandColors = [settings?.primaryColor ?? "#6366f1", settings?.secondaryColor ?? "#818cf8", "#ffffff", "#000000", "#f3f4f6"].filter(Boolean);
 
@@ -875,6 +942,19 @@ export default function GraphicBuilderModal({ open, onClose, onExport, prefill }
 
   function handlePhotoUpload(file) {
     applyBg("photo", { url: URL.createObjectURL(file) });
+  }
+
+  async function handleAiGenerateBg(prompt) {
+    setBgAiGenerating(true);
+    try {
+      const token = await getToken();
+      const { data } = await api.post("/ai/generate-image", { prompt }, { headers: { Authorization: `Bearer ${token}` } });
+      applyBg("photo", { url: data.url });
+    } catch (err) {
+      console.error("[AI Image]", err?.response?.data?.error || err.message);
+    } finally {
+      setBgAiGenerating(false);
+    }
   }
 
   function addTextBlock() {
@@ -1023,7 +1103,7 @@ export default function GraphicBuilderModal({ open, onClose, onExport, prefill }
     if (isIconSelected) return <IconControls obj={selectedObj} canvas={fabricRef.current} brandColors={brandColors} onDelete={deleteSelected} onBack={deselect} />;
     return (
       <>
-        <BackgroundControls bgType={bgType} setBgType={setBgType} bgSolid={bgSolid} setBgSolid={setBgSolid} bgGradient={bgGradient} setBgGradient={setBgGradient} brandColors={brandColors} onApplyBg={applyBg} onPhotoUpload={handlePhotoUpload} />
+        <BackgroundControls bgType={bgType} setBgType={setBgType} bgSolid={bgSolid} setBgSolid={setBgSolid} bgGradient={bgGradient} setBgGradient={setBgGradient} brandColors={brandColors} onApplyBg={applyBg} onPhotoUpload={handlePhotoUpload} onAiGenerate={handleAiGenerateBg} aiGenerating={bgAiGenerating} />
         <AssetsPanel iconColor={iconColor} setIconColor={setIconColor} onAddIcon={addIconToCanvas} onAddImageFile={addImageToCanvas} />
       </>
     );
@@ -1124,6 +1204,60 @@ export default function GraphicBuilderModal({ open, onClose, onExport, prefill }
                       <span className="text-[10px] font-medium">{label}</span>
                     </button>
                   ))}
+                </div>
+              )}
+            </div>
+            <div className="relative" ref={aiMenuRef}>
+              <button
+                onClick={() => setShowAiMenu((v) => !v)}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12px] font-medium border transition-colors shadow-sm"
+                style={{ background: showAiMenu ? "#4f46e5" : "white", color: showAiMenu ? "white" : "#6366f1", borderColor: "#a5b4fc" }}
+              >
+                {bgAiGenerating ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5" />}
+                AI background
+              </button>
+              {showAiMenu && (
+                <div className="absolute bottom-full mb-2 left-0 bg-white rounded-xl border border-indigo-100 shadow-xl p-3 z-50 w-64">
+                  <p className="text-[11px] font-semibold text-gray-700 mb-2">Generate AI background</p>
+                  <textarea
+                    value={aiMenuPrompt}
+                    onChange={(e) => setAiMenuPrompt(e.target.value)}
+                    placeholder="Describe the image… e.g. sunrise over a misty mountain, golden light"
+                    rows={3}
+                    className="w-full text-[12px] rounded-lg border border-gray-200 px-2.5 py-2 resize-none outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100"
+                    autoFocus
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
+                        if (!aiMenuPrompt.trim() || bgAiGenerating) return;
+                        setBgType("photo");
+                        handleAiGenerateBg(aiMenuPrompt.trim());
+                        setAiMenuPrompt("");
+                        setShowAiMenu(false);
+                      }
+                    }}
+                  />
+                  <div className="flex gap-2 mt-2">
+                    <button
+                      onClick={() => { setShowAiMenu(false); setAiMenuPrompt(""); }}
+                      className="flex-1 py-1.5 rounded-lg text-[11px] font-medium text-gray-500 border border-gray-200 hover:bg-gray-50 transition-colors"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={() => {
+                        if (!aiMenuPrompt.trim() || bgAiGenerating) return;
+                        setBgType("photo");
+                        handleAiGenerateBg(aiMenuPrompt.trim());
+                        setAiMenuPrompt("");
+                        setShowAiMenu(false);
+                      }}
+                      disabled={!aiMenuPrompt.trim() || bgAiGenerating}
+                      className="flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-[11px] font-semibold text-white bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 transition-colors"
+                    >
+                      {bgAiGenerating ? <Loader2 className="h-3 w-3 animate-spin" /> : <Sparkles className="h-3 w-3" />}
+                      {bgAiGenerating ? "Generating…" : "Generate"}
+                    </button>
+                  </div>
                 </div>
               )}
             </div>

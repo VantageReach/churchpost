@@ -1,8 +1,10 @@
 import { Router } from "express";
 import Anthropic from "@anthropic-ai/sdk";
+import axios from "axios";
 import { requireOrgRole } from "../middleware/auth.js";
 import prisma from "../lib/prisma.js";
 import { getUpcomingEntries } from "../lib/nationalCalendar.js";
+import { redisConnection } from "../lib/redis.js";
 
 const router = Router();
 
@@ -126,6 +128,18 @@ Include relevant emojis. Write only the caption text. No explanation, no quotes.
 router.get("/proactive", requireOrgRole("ORG_ADMIN", "EDITOR", "VIEWER"), async (req, res, next) => {
   try {
     const now = new Date();
+    const forceRefresh = req.query.refresh === "1";
+
+    // Daily cache key — suggestions don't change within a day
+    const dateKey = now.toISOString().slice(0, 10); // YYYY-MM-DD
+    const cacheKey = `proactive:${req.org.id}:${dateKey}`;
+
+    if (!forceRefresh) {
+      try {
+        const cached = await redisConnection.get(cacheKey);
+        if (cached) return res.json(JSON.parse(cached));
+      } catch { /* Redis unavailable — fall through to live compute */ }
+    }
     const in30 = new Date(now.getTime() + 30 * 86400_000);
 
     const [settings, pcEvents, gcalEvents, scheduledPosts] = await Promise.all([
@@ -301,8 +315,55 @@ No markdown, no explanation. Only the JSON array.`,
       return res.status(500).json({ error: "AI returned invalid JSON", raw });
     }
 
-    res.json({ suggestions, pcEvents: allEventItems, hasGap, upcomingCount });
+    const payload = { suggestions, pcEvents: allEventItems, hasGap, upcomingCount };
+
+    // Cache until midnight — TTL = seconds remaining today
+    try {
+      const midnight = new Date(now);
+      midnight.setHours(24, 0, 0, 0);
+      const ttl = Math.max(60, Math.floor((midnight - now) / 1000));
+      await redisConnection.setex(cacheKey, ttl, JSON.stringify(payload));
+    } catch { /* Redis unavailable — skip cache write */ }
+
+    res.json(payload);
   } catch (err) {
+    next(err);
+  }
+});
+
+// POST /api/ai/generate-image — generate a background image via Gemini
+router.post("/generate-image", requireOrgRole("ORG_ADMIN", "EDITOR"), async (req, res, next) => {
+  try {
+    const { prompt } = req.body;
+    if (!prompt?.trim()) return res.status(400).json({ error: "prompt is required" });
+
+    if (!process.env.GEMINI_API_KEY) {
+      return res.status(503).json({ error: "GEMINI_API_KEY is not configured. Add it to your Railway environment variables." });
+    }
+
+    const enhancedPrompt = `${prompt.trim()}. High quality photo or illustration. Suitable for a Christian church social media graphic. Uplifting, professional aesthetic. No text or words in the image.`;
+
+    const geminiRes = await axios.post(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-preview-image-generation:generateContent?key=${process.env.GEMINI_API_KEY}`,
+      {
+        contents: [{ parts: [{ text: enhancedPrompt }] }],
+        generationConfig: { responseModalities: ["IMAGE"] },
+      },
+      { timeout: 60000 }
+    );
+
+    const parts = geminiRes.data?.candidates?.[0]?.content?.parts ?? [];
+    const imagePart = parts.find((p) => p.inlineData?.mimeType?.startsWith("image/"));
+    if (!imagePart) {
+      console.error("[AI Image] No image in response:", JSON.stringify(geminiRes.data).slice(0, 300));
+      return res.status(500).json({ error: "Gemini did not return an image. Try rephrasing your prompt." });
+    }
+
+    // Return as data URL — avoids CORS/tainted-canvas issues with Fabric.js
+    res.json({ url: `data:${imagePart.inlineData.mimeType};base64,${imagePart.inlineData.data}` });
+  } catch (err) {
+    const detail = err?.response?.data?.error?.message;
+    console.error("[AI Image]", detail || err.message);
     next(err);
   }
 });

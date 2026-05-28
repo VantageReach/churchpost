@@ -14,7 +14,7 @@ export function useProactiveSuggestions() {
   return useQuery({
     queryKey: ["proactiveSuggestions"],
     queryFn: () => api.get("/ai/proactive").then((r) => r.data),
-    staleTime: 1000 * 60 * 60, // 1 hour — don't hammer AI on every navigation
+    staleTime: Infinity, // Redis caches per-day server-side; no need to re-fetch within a session
     retry: false,
   });
 }

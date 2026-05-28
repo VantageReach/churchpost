@@ -789,6 +789,7 @@ export default function GraphicBuilderModal({ open, onClose, onExport, prefill }
   const [canRedo, setCanRedo] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [bgAiGenerating, setBgAiGenerating] = useState(false);
+  const [bgAiError, setBgAiError] = useState(null);
   const [mobilePanel, setMobilePanel] = useState("templates");
   const [showShapeMenu, setShowShapeMenu] = useState(false);
   const [showAiMenu, setShowAiMenu] = useState(false);
@@ -946,12 +947,16 @@ export default function GraphicBuilderModal({ open, onClose, onExport, prefill }
 
   async function handleAiGenerateBg(prompt) {
     setBgAiGenerating(true);
+    setBgAiError(null);
     try {
       const token = await getToken();
       const { data } = await api.post("/ai/generate-image", { prompt }, { headers: { Authorization: `Bearer ${token}` } });
       applyBg("photo", { url: data.url });
+      setBgType("photo");
     } catch (err) {
-      console.error("[AI Image]", err?.response?.data?.error || err.message);
+      const msg = err?.response?.data?.error || err.message || "Image generation failed";
+      setBgAiError(msg);
+      setShowAiMenu(true); // re-open the popup so the error is visible
     } finally {
       setBgAiGenerating(false);
     }
@@ -1209,7 +1214,7 @@ export default function GraphicBuilderModal({ open, onClose, onExport, prefill }
             </div>
             <div className="relative" ref={aiMenuRef}>
               <button
-                onClick={() => setShowAiMenu((v) => !v)}
+                onClick={() => { setShowAiMenu((v) => !v); setBgAiError(null); }}
                 className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12px] font-medium border transition-colors shadow-sm"
                 style={{ background: showAiMenu ? "#4f46e5" : "white", color: showAiMenu ? "white" : "#6366f1", borderColor: "#a5b4fc" }}
               >
@@ -1220,6 +1225,11 @@ export default function GraphicBuilderModal({ open, onClose, onExport, prefill }
                 <div className="absolute bottom-full mb-2 left-0 bg-white rounded-xl border border-indigo-100 shadow-xl p-3 z-50 w-72">
                   <p className="text-[11px] font-semibold text-gray-700 mb-0.5">Generate image with AI</p>
                   <p className="text-[10px] text-gray-400 mb-2">Describe a full graphic or just a background photo — the AI will generate it.</p>
+                  {bgAiError && (
+                    <div className="mb-2 px-2.5 py-2 rounded-lg bg-red-50 border border-red-100">
+                      <p className="text-[11px] text-red-600">{bgAiError}</p>
+                    </div>
+                  )}
                   <textarea
                     value={aiMenuPrompt}
                     onChange={(e) => setAiMenuPrompt(e.target.value)}

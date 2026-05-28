@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { PenSquare, Save, Send } from "lucide-react";
 import PlatformSelector from "../components/composer/PlatformSelector.jsx";
@@ -30,6 +30,7 @@ export default function Compose() {
   const location = useLocation();
   const prefill = location.state?.prefill;
   const editPost = location.state?.editPost ?? null;
+  const attachedFile = location.state?.attachedFile ?? null;
   const isEditing = !!editPost;
 
   const initPlatforms = editPost?.platforms ?? prefill?.platforms ?? DEFAULT_PLATFORMS;
@@ -62,6 +63,14 @@ export default function Compose() {
 
   const isSaving = createPost.isPending || updatePost.isPending || publishPost.isPending;
   const isUploading = uploadMedia.isPending;
+
+  // Auto-attach a graphic exported from the standalone Graphic Builder page
+  useEffect(() => {
+    if (!attachedFile) return;
+    uploadMedia.mutateAsync([attachedFile]).then((uploaded) => {
+      setMediaAssets((prev) => [...prev, ...uploaded]);
+    }).catch(() => {});
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   function handlePlatformChange(newPlatforms) {
     setPlatforms(newPlatforms);

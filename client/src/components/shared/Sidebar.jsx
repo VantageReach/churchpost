@@ -5,6 +5,7 @@ import {
   CalendarDays,
   FileText,
   PenSquare,
+  ImagePlay,
   Upload,
   Settings,
   LogOut,
@@ -29,6 +30,7 @@ const NAV_SECTIONS = [
     label: "Create",
     items: [
       { to: "/compose", icon: PenSquare, label: "Compose" },
+      { to: "/graphics", icon: ImagePlay, label: "Create Graphic" },
       { to: "/bulk-upload", icon: Upload, label: "Bulk Upload" },
     ],
   },

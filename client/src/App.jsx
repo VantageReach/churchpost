@@ -13,6 +13,7 @@ import Calendar from "./pages/Calendar.jsx";
 import Posts from "./pages/Posts.jsx";
 import Analytics from "./pages/Analytics.jsx";
 import BulkUpload from "./pages/BulkUpload.jsx";
+import GraphicBuilder from "./pages/GraphicBuilder.jsx";
 import Settings from "./pages/Settings.jsx";
 import Privacy from "./pages/Privacy.jsx";
 import Terms from "./pages/Terms.jsx";
@@ -62,6 +63,7 @@ function AppShell() {
           <Route path="calendar" element={<Calendar />} />
           <Route path="posts" element={<Posts />} />
           <Route path="analytics" element={<Analytics />} />
+          <Route path="graphics" element={<GraphicBuilder />} />
           <Route path="bulk-upload" element={<BulkUpload />} />
           <Route path="settings" element={<Settings />} />
           <Route path="settings/:tab" element={<Settings />} />

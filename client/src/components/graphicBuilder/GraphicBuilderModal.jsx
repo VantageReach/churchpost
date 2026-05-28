@@ -170,12 +170,42 @@ function BackgroundControls({ bgType, setBgType, bgSolid, setBgSolid, bgGradient
   const fileRef = useRef(null);
   const [showAiPrompt, setShowAiPrompt] = useState(false);
   const [aiPrompt, setAiPrompt] = useState("");
+  const { getToken } = useAuth();
+  const [unsplashQuery, setUnsplashQuery] = useState("");
+  const [unsplashPhotos, setUnsplashPhotos] = useState(null);
+  const [unsplashSearching, setUnsplashSearching] = useState(false);
 
   function handleAiGenerate() {
     if (!aiPrompt.trim()) return;
     onAiGenerate(aiPrompt.trim());
     setShowAiPrompt(false);
     setAiPrompt("");
+  }
+
+  async function searchUnsplash(q) {
+    if (!q?.trim()) return;
+    setUnsplashSearching(true);
+    try {
+      const token = await getToken();
+      const { data } = await api.get(`/media/unsplash/search?q=${encodeURIComponent(q.trim())}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      setUnsplashPhotos(data.photos ?? []);
+    } catch {
+      setUnsplashPhotos([]);
+    } finally {
+      setUnsplashSearching(false);
+    }
+  }
+
+  async function applyUnsplashPhoto(photo) {
+    onApplyBg("photo", { url: photo.regular });
+    try {
+      const token = await getToken();
+      api.post("/media/unsplash/track", { downloadLocation: photo.downloadLocation }, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+    } catch { /* non-critical */ }
   }
 
   return (
@@ -287,6 +317,56 @@ function BackgroundControls({ bgType, setBgType, bgSolid, setBgSolid, bgGradient
               </div>
             </div>
           )}
+
+          <div className="flex items-center gap-2 text-[10px] text-gray-300">
+            <div className="flex-1 h-px bg-gray-100" />
+            <span>or</span>
+            <div className="flex-1 h-px bg-gray-100" />
+          </div>
+
+          {/* Unsplash search */}
+          <div>
+            <div className="flex gap-1.5">
+              <input
+                type="text"
+                value={unsplashQuery}
+                onChange={(e) => setUnsplashQuery(e.target.value)}
+                onKeyDown={(e) => { if (e.key === "Enter") searchUnsplash(unsplashQuery); }}
+                placeholder="Search Unsplash photos…"
+                className="flex-1 text-[12px] rounded-lg border border-gray-200 px-2.5 py-1.5 outline-none focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100"
+              />
+              <button
+                onClick={() => searchUnsplash(unsplashQuery)}
+                disabled={!unsplashQuery.trim() || unsplashSearching}
+                className="px-2.5 py-1.5 rounded-lg bg-emerald-500 text-white hover:bg-emerald-600 disabled:opacity-50 transition-colors flex-shrink-0"
+              >
+                {unsplashSearching ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Search className="h-3.5 w-3.5" />}
+              </button>
+            </div>
+            {unsplashPhotos !== null && (
+              <>
+                <div className="mt-2 grid grid-cols-3 gap-1 max-h-44 overflow-y-auto">
+                  {unsplashPhotos.map((photo) => (
+                    <button
+                      key={photo.id}
+                      onClick={() => applyUnsplashPhoto(photo)}
+                      title={`Photo by ${photo.photographer} on Unsplash`}
+                      className="relative rounded-lg overflow-hidden aspect-square bg-gray-100 hover:ring-2 hover:ring-emerald-400 transition-all flex-shrink-0"
+                      style={{ backgroundColor: photo.color }}
+                    >
+                      <img src={photo.thumb} alt={photo.alt ?? ""} className="w-full h-full object-cover" loading="lazy" />
+                    </button>
+                  ))}
+                  {unsplashPhotos.length === 0 && (
+                    <p className="col-span-3 text-center text-[11px] text-gray-400 py-3">No results found</p>
+                  )}
+                </div>
+                <p className="text-[9px] text-gray-300 mt-1 text-center">
+                  Photos from <a href="https://unsplash.com" target="_blank" rel="noreferrer" className="underline">Unsplash</a>
+                </p>
+              </>
+            )}
+          </div>
         </div>
       )}
 

@@ -281,4 +281,44 @@ router.get("/:assetId/variants", requireOrgRole("ORG_ADMIN", "EDITOR"), async (r
   }
 });
 
+// GET /api/media/unsplash/search?q=keyword — proxy Unsplash photo search
+router.get("/unsplash/search", requireOrgRole("ORG_ADMIN", "EDITOR"), async (req, res, next) => {
+  try {
+    if (!process.env.UNSPLASH_ACCESS_KEY) return res.status(503).json({ error: "Unsplash not configured" });
+    const q = req.query.q?.trim() || "church worship nature";
+    const { data } = await axios.get("https://api.unsplash.com/search/photos", {
+      params: { query: q, per_page: 20, orientation: "squarish" },
+      headers: { Authorization: `Client-ID ${process.env.UNSPLASH_ACCESS_KEY}` },
+      timeout: 10000,
+    });
+    res.json({
+      photos: (data.results ?? []).map((p) => ({
+        id: p.id,
+        thumb: p.urls.thumb,
+        regular: p.urls.regular,
+        photographer: p.user.name,
+        photographerUrl: p.user.links.html,
+        downloadLocation: p.links.download_location,
+        color: p.color,
+        alt: p.alt_description,
+      })),
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// POST /api/media/unsplash/track — trigger Unsplash download event (required by API guidelines)
+router.post("/unsplash/track", requireOrgRole("ORG_ADMIN", "EDITOR"), async (req, res) => {
+  try {
+    const { downloadLocation } = req.body;
+    if (!downloadLocation || !process.env.UNSPLASH_ACCESS_KEY) return res.json({ ok: true });
+    await axios.get(downloadLocation, {
+      params: { client_id: process.env.UNSPLASH_ACCESS_KEY },
+      timeout: 5000,
+    });
+  } catch { /* non-critical — never fail the request over tracking */ }
+  res.json({ ok: true });
+});
+
 export default router;

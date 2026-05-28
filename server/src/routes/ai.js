@@ -370,18 +370,18 @@ router.post("/generate-image", requireOrgRole("ORG_ADMIN", "EDITOR"), async (req
   }
 });
 
-// GET /api/ai/models — list available Gemini models (diagnostic)
-router.get("/models", requireOrgRole("ORG_ADMIN", "EDITOR"), async (req, res, next) => {
+// GET /api/ai/models — list available Gemini models (temporary public diagnostic — remove after debugging)
+router.get("/models", async (req, res, next) => {
   try {
     if (!process.env.GEMINI_API_KEY) return res.status(503).json({ error: "GEMINI_API_KEY not set" });
     const { data } = await axios.get(
       `https://generativelanguage.googleapis.com/v1beta/models?key=${process.env.GEMINI_API_KEY}`,
       { timeout: 15000 }
     );
-    const imageModels = (data.models ?? []).filter((m) =>
-      m.supportedGenerationMethods?.includes("generateContent")
-    );
-    res.json({ total: data.models?.length, generateContentModels: imageModels.map((m) => m.name) });
+    res.json({
+      total: data.models?.length,
+      models: (data.models ?? []).map((m) => ({ name: m.name, methods: m.supportedGenerationMethods })),
+    });
   } catch (err) {
     next(err);
   }

@@ -27,7 +27,7 @@ export const PLATFORM_FORMATS = {
     {
       key: "feed_post", label: "Feed Post", icon: LayoutGrid, default: true,
       supports: ["image", "video", "multiple"],
-      ratios: ["1:1", "4:5", "16:9"], recommendedRatio: "4:5", maxVideoSec: 60,
+      ratios: ["4:5", "1:1", "1.91:1"], recommendedRatio: "4:5", maxVideoSec: 60,
     },
     {
       key: "story", label: "Story", icon: Smartphone,
@@ -128,10 +128,11 @@ export function getFormatWarnings(platform, formatKey, mediaAssets = []) {
 
 // Aspect ratio preview dimensions for the post preview frame
 export const RATIO_PREVIEW = {
-  "9:16": { w: 9, h: 16, label: "Vertical (9:16)" },
-  "16:9": { w: 16, h: 9, label: "Landscape (16:9)" },
-  "1:1":  { w: 1,  h: 1,  label: "Square (1:1)" },
-  "4:5":  { w: 4,  h: 5,  label: "Portrait (4:5)" },
+  "9:16":   { w: 9,    h: 16, label: "Vertical (9:16)" },
+  "16:9":   { w: 16,   h: 9,  label: "Landscape (16:9)" },
+  "1:1":    { w: 1,    h: 1,  label: "Square (1:1)" },
+  "4:5":    { w: 4,    h: 5,  label: "Portrait (4:5)" },
+  "1.91:1": { w: 1.91, h: 1,  label: "Landscape (1.91:1)" },
 };
 
 export const YOUTUBE_CATEGORIES = [

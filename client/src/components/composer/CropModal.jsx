@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { X, ZoomIn, ZoomOut, RotateCcw, RotateCw, FlipHorizontal, Maximize, Minimize } from "lucide-react";
 import { cn } from "../../lib/utils.js";
-import { RATIO_PREVIEW } from "../../lib/postFormats.js";
+import { RATIO_PREVIEW, getFormatConfig } from "../../lib/postFormats.js";
 import api from "../../lib/api.js";
 
 const STAGE_SIZE = 400;
@@ -37,9 +37,19 @@ export default function CropModal({ asset, platform, format, aspectRatio, onAppl
   const [error, setError] = useState(null);
   const dragRef = useRef(null);
 
-  const ratio = aspectRatio ?? "1:1";
+  const [ratio, setRatio] = useState(aspectRatio ?? "1:1");
   const { fw, fh, fl, ft } = computeFrame(ratio);
   const ratioPreview = RATIO_PREVIEW[ratio];
+
+  const formatConfig = getFormatConfig(platform, format);
+  const availableRatios = formatConfig?.ratios ?? [ratio];
+
+  function changeRatio(newRatio) {
+    setRatio(newRatio);
+    setZoom(1);
+    setOffsetX(0);
+    setOffsetY(0);
+  }
 
   function onImageLoad(e) {
     setNaturalW(e.target.naturalWidth);
@@ -258,6 +268,31 @@ export default function CropModal({ asset, platform, format, aspectRatio, onAppl
 
           {/* Controls panel */}
           <div className="w-full sm:w-56 flex flex-col gap-4 p-5 border-t sm:border-t-0 sm:border-l border-gray-100 bg-gray-50/50">
+            {/* Ratio quick-select */}
+            {availableRatios.length > 1 && (
+              <div>
+                <label className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider block mb-2">
+                  Ratio
+                </label>
+                <div className="flex flex-wrap gap-1.5">
+                  {availableRatios.map((r) => (
+                    <button
+                      key={r}
+                      type="button"
+                      onClick={() => changeRatio(r)}
+                      className={cn(
+                        "px-2.5 py-1 rounded-lg text-[11px] font-medium border transition-colors",
+                        ratio === r
+                          ? "bg-indigo-600 border-indigo-600 text-white"
+                          : "bg-white border-gray-200 text-gray-600 hover:bg-gray-50"
+                      )}
+                    >
+                      {r}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
             {/* Zoom */}
             <div>
               <label className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider block mb-2">

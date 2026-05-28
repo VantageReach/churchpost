@@ -51,7 +51,7 @@ export default function FormatPackPanel({ platforms, formats, assets, cropVarian
     if (!format) return;
     const config = getFormatConfig(platform, format);
     if (!config) return;
-    const primaryRatio = config.ratios?.[config.ratios.length - 1] ?? "1:1";
+    const primaryRatio = config.recommendedRatio ?? config.ratios?.[0] ?? "1:1";
     const key = `${platform}__${format}__${primaryRatio}`;
     if (!seen.has(key)) {
       seen.add(key);

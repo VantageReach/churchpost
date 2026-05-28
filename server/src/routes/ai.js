@@ -125,19 +125,34 @@ Include relevant emojis. Write only the caption text. No explanation, no quotes.
 // GET /api/ai/proactive — AI-generated content ideas based on upcoming calendar events
 router.get("/proactive", requireOrgRole("ORG_ADMIN", "EDITOR", "VIEWER"), async (req, res, next) => {
   try {
-    const [settings, pcEvents, gcalEvents] = await Promise.all([
+    const now = new Date();
+    const in30 = new Date(now.getTime() + 30 * 86400_000);
+
+    const [settings, pcEvents, gcalEvents, scheduledPosts] = await Promise.all([
       prisma.orgSettings.findUnique({ where: { organizationId: req.org.id } }),
       prisma.planningCenterEvent.findMany({
-        where: { organizationId: req.org.id, startsAt: { gte: new Date(), lte: new Date(Date.now() + 21 * 86400_000) } },
+        where: { organizationId: req.org.id, startsAt: { gte: now, lte: in30 } },
         orderBy: { startsAt: "asc" },
-        take: 8,
+        take: 15,
       }),
       prisma.googleCalendarEvent.findMany({
-        where: { organizationId: req.org.id, startsAt: { gte: new Date(), lte: new Date(Date.now() + 21 * 86400_000) } },
+        where: { organizationId: req.org.id, startsAt: { gte: now, lte: in30 } },
         orderBy: { startsAt: "asc" },
-        take: 8,
+        take: 15,
+      }),
+      prisma.post.findMany({
+        where: {
+          organizationId: req.org.id,
+          status: { in: ["SCHEDULED", "DRAFT"] },
+          scheduledAt: { gte: now, lte: new Date(now.getTime() + 14 * 86400_000) },
+        },
+        select: { scheduledAt: true, platforms: true },
+        orderBy: { scheduledAt: "asc" },
       }),
     ]);
+
+    const hasGap = scheduledPosts.length < 3;
+    const upcomingCount = scheduledPosts.length;
 
     // Build filter object from org settings
     const calendarFilters = {
@@ -147,62 +162,67 @@ router.get("/proactive", requireOrgRole("ORG_ADMIN", "EDITOR", "VIEWER"), async 
       fun: settings?.nationalCalendarFun ?? true,
     };
 
-    // Get upcoming events for next 21 days
-    const upcomingEvents = getUpcomingEntries(new Date(), 21, calendarFilters);
-
-    // Check posting gaps — days with no scheduled posts in next 14 days
-    const now = new Date();
-    const in14 = new Date(now.getTime() + 14 * 24 * 60 * 60 * 1000);
-    const scheduledPosts = await prisma.post.findMany({
-      where: {
-        organizationId: req.org.id,
-        status: { in: ["SCHEDULED", "DRAFT"] },
-        scheduledAt: { gte: now, lte: in14 },
-      },
-      select: { scheduledAt: true, platforms: true },
-      orderBy: { scheduledAt: "asc" },
-    });
-
-    const hasGap = scheduledPosts.length < 3;
-    const upcomingCount = scheduledPosts.length;
-
-    // Compute daysUntil for each event
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-    const withDays = upcomingEvents.map((e) => {
+
+    // National calendar events for next 30 days
+    const nationalEvents = getUpcomingEntries(new Date(), 30, calendarFilters).map((e) => {
       const eventDate = new Date(e.date);
       eventDate.setHours(0, 0, 0, 0);
-      const daysUntil = Math.round((eventDate - today) / (1000 * 60 * 60 * 24));
-      return { ...e, daysUntil };
+      return {
+        type: "national",
+        label: e.label,
+        emoji: e.emoji,
+        daysUntil: Math.round((eventDate - today) / 86400_000),
+        hint: e.suggestTopics?.slice(0, 2).join(", ") || null,
+      };
     });
 
-    // Build combined event list from Planning Center + Google Calendar (max 5 each)
-    const allEventItems = [
-      ...pcEvents.slice(0, 5).map((ev) => ({
-        title: ev.title,
-        source: ev.source,
-        daysUntil: ev.startsAt ? Math.max(0, Math.round((new Date(ev.startsAt) - today) / 86400_000)) : null,
-        description: ev.description,
-      })),
-      ...gcalEvents.slice(0, 5).map((ev) => ({
-        title: ev.title,
-        source: "google_calendar",
-        daysUntil: ev.startsAt ? Math.max(0, Math.round((new Date(ev.startsAt) - today) / 86400_000)) : null,
-        description: ev.description,
-      })),
-    ].slice(0, 8);
+    // Planning Center events
+    const pcItems = pcEvents.map((ev) => ({
+      type: "church",
+      label: ev.title,
+      emoji: "⛪",
+      daysUntil: ev.startsAt ? Math.max(0, Math.round((new Date(ev.startsAt) - today) / 86400_000)) : null,
+      hint: ev.description?.slice(0, 100) || null,
+      source: ev.source || "planning_center",
+    })).filter((e) => e.daysUntil !== null);
 
-    // Pick top 5 national calendar events to generate ideas for
-    const featuredEvents = withDays.slice(0, 5);
+    // Google Calendar events
+    const gcalItems = gcalEvents.map((ev) => ({
+      type: "church",
+      label: ev.title,
+      emoji: "📅",
+      daysUntil: ev.startsAt ? Math.max(0, Math.round((new Date(ev.startsAt) - today) / 86400_000)) : null,
+      hint: ev.description?.slice(0, 100) || null,
+      source: "google_calendar",
+    })).filter((e) => e.daysUntil !== null);
+
+    // Combine all sources, deduplicate by label, sort soonest first, cap at 12
+    const seen = new Set();
+    const allEvents = [...nationalEvents, ...pcItems, ...gcalItems]
+      .filter((e) => {
+        const key = e.label.toLowerCase().trim();
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      })
+      .sort((a, b) => a.daysUntil - b.daysUntil)
+      .slice(0, 12);
+
+    // Keep pcEvents shape for frontend backward-compat
+    const allEventItems = [...pcItems, ...gcalItems]
+      .sort((a, b) => a.daysUntil - b.daysUntil)
+      .slice(0, 10)
+      .map(({ label, source, daysUntil, hint }) => ({ title: label, source, daysUntil, description: hint }));
 
     if (!process.env.ANTHROPIC_API_KEY) {
-      // Return stub suggestions when no API key
       return res.json({
-        suggestions: withDays.slice(0, 3).map((e) => ({
+        suggestions: allEvents.slice(0, 3).map((e) => ({
           eventLabel: e.label,
           eventEmoji: e.emoji,
           daysUntil: e.daysUntil,
-          topic: e.suggestTopics?.[0] || e.label,
+          topic: e.hint || e.label,
           caption: `Add your ANTHROPIC_API_KEY to enable AI-generated suggestions for ${e.label}.`,
           hashtags: ["church", "community"],
           platforms: ["facebook", "instagram"],
@@ -217,42 +237,36 @@ router.get("/proactive", requireOrgRole("ORG_ADMIN", "EDITOR", "VIEWER"), async 
       settings?.aiSystemPrompt ||
       "You are a social media assistant for a Christian church. Write warm, welcoming content.";
 
-    const nationalList = featuredEvents
-      .map(
-        (e, i) =>
-          `${i + 1}. ${e.emoji} ${e.label} — in ${e.daysUntil} day${e.daysUntil !== 1 ? "s" : ""} (topics: ${e.suggestTopics?.slice(0, 2).join(", ")})`
-      )
-      .join("\n");
-
-    const pcList = allEventItems.length
-      ? "\n\nYour church's upcoming events:\n" +
-        allEventItems
-          .map((ev, i) => `${i + 1}. "${ev.title}" (${ev.source})${ev.daysUntil != null ? ` — in ${ev.daysUntil} day${ev.daysUntil !== 1 ? "s" : ""}` : ""}${ev.description ? `: ${ev.description.slice(0, 80)}` : ""}`)
-          .join("\n")
-      : "";
-
-    const todayEvents = featuredEvents.filter((e) => e.daysUntil === 0);
+    const todayEvents = allEvents.filter((e) => e.daysUntil === 0);
     const todayNote = todayEvents.length
       ? `IMPORTANT: ${todayEvents.map((e) => `${e.emoji} ${e.label}`).join(" and ")} is TODAY. Put this first in your response and make the caption timely and ready to post immediately.\n\n`
       : "";
 
+    const eventList = allEvents
+      .map((e, i) => {
+        const when = e.daysUntil === 0 ? "TODAY" : e.daysUntil === 1 ? "tomorrow" : `in ${e.daysUntil} days`;
+        const hint = e.hint ? ` — ${e.hint}` : "";
+        return `${i + 1}. ${e.emoji} ${e.label} (${when})${hint}`;
+      })
+      .join("\n");
+
     const message = await getAnthropic().messages.create({
       model: "claude-sonnet-4-6",
-      max_tokens: 1500,
+      max_tokens: 2500,
       system: systemPrompt,
       messages: [
         {
           role: "user",
-          content: `${todayNote}Here are upcoming calendar events for the next 21 days:
+          content: `${todayNote}Here are upcoming events for the next 30 days (mix of holidays, church events, and calendar items):
 
-${nationalList}${pcList}
+${eventList}
 
 ${hasGap ? `Note: this church has only ${upcomingCount} post${upcomingCount !== 1 ? "s" : ""} scheduled in the next 14 days — they could use more content.` : ""}
 
-Generate one concise social media post idea for each national calendar event listed above. Return ONLY a valid JSON array with objects containing:
+Generate one social media post idea for EACH event listed above, in the same order (soonest first). Return ONLY a valid JSON array with objects containing:
 - "eventLabel": the event name exactly as given
 - "eventEmoji": the emoji from the event
-- "daysUntil": number of days until the event
+- "daysUntil": number of days until the event (0 = today)
 - "topic": a one-line content angle (not the caption itself)
 - "caption": a ready-to-use social media caption with emojis (1-3 sentences)
 - "hashtags": 3-4 hashtag strings (no # symbol)

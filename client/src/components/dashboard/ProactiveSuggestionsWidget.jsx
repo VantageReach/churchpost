@@ -193,7 +193,7 @@ export default function ProactiveSuggestionsWidget() {
           </div>
         ) : data?.suggestions?.length === 0 ? (
           <div className="flex flex-col items-center py-8 text-center">
-            <p className="text-[13px] text-gray-500">No upcoming events in the next 21 days</p>
+            <p className="text-[13px] text-gray-500">No upcoming events in the next 30 days</p>
             <p className="text-[11px] text-gray-400 mt-1">Check your calendar settings</p>
           </div>
         ) : (

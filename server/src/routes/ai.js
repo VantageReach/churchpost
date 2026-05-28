@@ -414,8 +414,8 @@ router.post("/generate-graphic", requireOrgRole("ORG_ADMIN", "EDITOR"), async (r
   }
 });
 
-// GET /api/ai/models — list available Gemini models (temporary public diagnostic — remove after debugging)
-router.get("/models", async (req, res, next) => {
+// GET /api/ai/models — list available Gemini models (diagnostic)
+router.get("/models", requireOrgRole("ORG_ADMIN", "EDITOR"), async (req, res, next) => {
   try {
     if (!process.env.GEMINI_API_KEY) return res.status(503).json({ error: "GEMINI_API_KEY not set" });
     const { data } = await axios.get(

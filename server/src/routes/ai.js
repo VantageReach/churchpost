@@ -369,47 +369,102 @@ router.post("/generate-image", requireOrgRole("ORG_ADMIN", "EDITOR"), async (req
   }
 });
 
-// POST /api/ai/generate-graphic — full designed graphic via DALL-E 3
+// POST /api/ai/generate-graphic — full designed graphic via OpenAI image generation
+// Tries gpt-image-1 first (best quality), falls back to dall-e-3 if unavailable
 router.post("/generate-graphic", requireOrgRole("ORG_ADMIN", "EDITOR"), async (req, res, next) => {
   try {
     const { prompt } = req.body;
     if (!prompt?.trim()) return res.status(400).json({ error: "prompt is required" });
     if (!process.env.OPENAI_API_KEY) {
-      return res.status(503).json({ error: "OPENAI_API_KEY is not configured." });
+      return res.status(503).json({ error: "OPENAI_API_KEY is not configured on the server." });
     }
 
     const enhancedPrompt = `A professional social media graphic for a Christian church. ${prompt.trim()}. Design it as a complete poster or flyer with bold typography, clear text hierarchy, decorative layout elements, and a polished look ready to post on Instagram or Facebook. Uplifting, warm aesthetic. Not a photograph — a designed graphic.`;
 
-    const { data } = await axios.post(
-      "https://api.openai.com/v1/images/generations",
-      {
-        model: "gpt-image-1",
-        prompt: enhancedPrompt,
-        n: 1,
-        size: "1024x1024",
-        quality: "medium",
-      },
-      {
-        headers: {
-          Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
-          "Content-Type": "application/json",
-        },
-        timeout: 120000,
-      }
-    );
+    const openaiHeaders = {
+      Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
+      "Content-Type": "application/json",
+    };
 
-    const b64 = data?.data?.[0]?.b64_json;
-    if (!b64) {
-      console.error("[AI Graphic] No image in response:", JSON.stringify(data).slice(0, 200));
-      return res.status(500).json({ error: "Graphic generation returned no result. Try rephrasing your prompt." });
+    // Try gpt-image-1 first, fall back to dall-e-3
+    let b64 = null;
+    let usedModel = null;
+
+    for (const model of ["gpt-image-1", "dall-e-3"]) {
+      try {
+        const body =
+          model === "gpt-image-1"
+            ? { model, prompt: enhancedPrompt, n: 1, size: "1024x1024", quality: "medium" }
+            : { model, prompt: enhancedPrompt, n: 1, size: "1024x1024", response_format: "b64_json" };
+
+        const { data } = await axios.post(
+          "https://api.openai.com/v1/images/generations",
+          body,
+          { headers: openaiHeaders, timeout: 90000 }
+        );
+
+        b64 = data?.data?.[0]?.b64_json;
+        // dall-e-3 may return a URL instead of b64 if b64_json wasn't honoured
+        if (!b64 && data?.data?.[0]?.url) {
+          const imgResp = await axios.get(data.data[0].url, { responseType: "arraybuffer", timeout: 15000 });
+          b64 = Buffer.from(imgResp.data).toString("base64");
+        }
+
+        if (b64) { usedModel = model; break; }
+        console.warn(`[AI Graphic] ${model} returned no image data — trying next model`);
+      } catch (modelErr) {
+        const status = modelErr?.response?.status;
+        const code = modelErr?.response?.data?.error?.code;
+        const msg = modelErr?.response?.data?.error?.message || modelErr.message;
+        const isTimeout = modelErr.code === "ECONNABORTED" || modelErr.message?.includes("timeout");
+        console.warn(`[AI Graphic] ${model} failed — status: ${status}, code: ${code}, msg: ${msg}, timeout: ${isTimeout}`);
+
+        // Auth/billing errors won't improve with a different model — bail early
+        if (status === 401 || status === 403) {
+          return res.status(503).json({
+            error: status === 401
+              ? "Invalid OpenAI API key. Check the OPENAI_API_KEY value in Railway."
+              : "Your OpenAI account doesn't have image generation access. Visit platform.openai.com to check your billing / usage tier.",
+          });
+        }
+        // Continue to next model on timeout or model-not-found
+      }
     }
 
+    if (!b64) {
+      return res.status(503).json({
+        error: "Graphic generation timed out or no image model was available on your OpenAI account. " +
+          "Visit app.churchpost.social then go to Settings → Integrations to verify your OpenAI API key has image generation access (platform.openai.com/account/limits).",
+      });
+    }
+
+    console.log(`[AI Graphic] Generated with ${usedModel}`);
     res.json({ url: `data:image/png;base64,${b64}` });
   } catch (err) {
     const openaiErr = err?.response?.data?.error;
     const detail = openaiErr?.message || err.message;
-    console.error("[AI Graphic] DALL-E error:", JSON.stringify(openaiErr ?? err.message));
+    console.error("[AI Graphic] Unexpected error:", JSON.stringify(openaiErr ?? err.message));
     return res.status(500).json({ error: `Graphic generation failed: ${detail}` });
+  }
+});
+
+// GET /api/ai/openai-check — verify OpenAI key and list available image models (diagnostic)
+router.get("/openai-check", requireOrgRole("ORG_ADMIN", "EDITOR"), async (req, res) => {
+  if (!process.env.OPENAI_API_KEY) return res.json({ ok: false, error: "OPENAI_API_KEY not set" });
+  try {
+    const { data } = await axios.get("https://api.openai.com/v1/models", {
+      headers: { Authorization: `Bearer ${process.env.OPENAI_API_KEY}` },
+      timeout: 10000,
+    });
+    const imageModels = (data.data ?? [])
+      .filter((m) => m.id.includes("dall-e") || m.id.includes("gpt-image"))
+      .map((m) => m.id)
+      .sort();
+    res.json({ ok: true, imageModels, total: data.data?.length });
+  } catch (err) {
+    const status = err?.response?.status;
+    const detail = err?.response?.data?.error?.message || err.message;
+    res.json({ ok: false, status, error: detail });
   }
 });
 

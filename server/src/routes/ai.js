@@ -237,6 +237,21 @@ router.get("/proactive", requireOrgRole("ORG_ADMIN", "EDITOR", "VIEWER"), async 
       settings?.aiSystemPrompt ||
       "You are a social media assistant for a Christian church. Write warm, welcoming content.";
 
+    const dayNames = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+    const dayName = dayNames[today.getDay()];
+
+    const dayRhythm = {
+      Sunday:    { emoji: "🙏", label: "Sunday Post", hint: "Worship content, sermon highlights, or gratitude for today's service" },
+      Monday:    { emoji: "💪", label: "Monday Motivation", hint: "New week inspiration or reflection on Sunday's message" },
+      Tuesday:   { emoji: "📖", label: "Midweek Word", hint: "Bible verse, devotional thought, or midweek encouragement" },
+      Wednesday: { emoji: "🤝", label: "Midweek Connection", hint: "Small groups, Bible study, or community highlight" },
+      Thursday:  { emoji: "🔔", label: "Sunday Preview", hint: "Tease this Sunday's topic, speaker, or special event" },
+      Friday:    { emoji: "🎉", label: "Friday Invite", hint: "Weekend energy — invite people to join this Sunday" },
+      Saturday:  { emoji: "⛪", label: "Church Invite", hint: "Direct invite to join tomorrow's service with time and location" },
+    };
+
+    const dayEntry = dayRhythm[dayName];
+
     const todayEvents = allEvents.filter((e) => e.daysUntil === 0);
     const todayNote = todayEvents.length
       ? `IMPORTANT: ${todayEvents.map((e) => `${e.emoji} ${e.label}`).join(" and ")} is TODAY. Put this first in your response and make the caption timely and ready to post immediately.\n\n`
@@ -257,16 +272,16 @@ router.get("/proactive", requireOrgRole("ORG_ADMIN", "EDITOR", "VIEWER"), async 
       messages: [
         {
           role: "user",
-          content: `${todayNote}Here are upcoming events for the next 30 days (mix of holidays, church events, and calendar items):
+          content: `${todayNote}Today is ${dayName}. Here are upcoming events for the next 30 days:
 
 ${eventList}
 
 ${hasGap ? `Note: this church has only ${upcomingCount} post${upcomingCount !== 1 ? "s" : ""} scheduled in the next 14 days — they could use more content.` : ""}
 
-Generate one social media post idea for EACH event listed above, in the same order (soonest first). Return ONLY a valid JSON array with objects containing:
-- "eventLabel": the event name exactly as given
-- "eventEmoji": the emoji from the event
-- "daysUntil": number of days until the event (0 = today)
+Generate one social media post idea for EACH event listed above, PLUS one additional post idea that fits today being ${dayName} (${dayEntry.hint}). Put the day-of-week post last unless today also has a calendar event. Return ONLY a valid JSON array with objects containing:
+- "eventLabel": the event name (use "${dayEntry.label}" for the day-of-week post)
+- "eventEmoji": the emoji
+- "daysUntil": days until the event (0 for today's day-of-week post)
 - "topic": a one-line content angle (not the caption itself)
 - "caption": a ready-to-use social media caption with emojis (1-3 sentences)
 - "hashtags": 3-4 hashtag strings (no # symbol)

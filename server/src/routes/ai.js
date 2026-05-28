@@ -344,23 +344,22 @@ router.post("/generate-image", requireOrgRole("ORG_ADMIN", "EDITOR"), async (req
     const enhancedPrompt = `${prompt.trim()}. High quality, visually striking image suitable for a Christian church social media post. Uplifting, professional aesthetic.`;
 
     const geminiRes = await axios.post(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=${process.env.GEMINI_API_KEY}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/imagen-4.0-fast-generate-001:predict?key=${process.env.GEMINI_API_KEY}`,
       {
-        contents: [{ parts: [{ text: enhancedPrompt }] }],
-        generationConfig: { responseModalities: ["IMAGE", "TEXT"] },
+        instances: [{ prompt: enhancedPrompt }],
+        parameters: { sampleCount: 1 },
       },
       { timeout: 60000 }
     );
 
-    const parts = geminiRes.data?.candidates?.[0]?.content?.parts ?? [];
-    const imagePart = parts.find((p) => p.inlineData?.data);
-    if (!imagePart) {
+    const prediction = geminiRes.data?.predictions?.[0];
+    if (!prediction?.bytesBase64Encoded) {
       console.error("[AI Image] No image in response:", JSON.stringify(geminiRes.data).slice(0, 300));
       return res.status(500).json({ error: "Image generation returned no result. Try rephrasing your prompt." });
     }
 
     // Return as data URL — avoids CORS/tainted-canvas issues with Fabric.js
-    res.json({ url: `data:${imagePart.inlineData.mimeType || "image/png"};base64,${imagePart.inlineData.data}` });
+    res.json({ url: `data:${prediction.mimeType || "image/png"};base64,${prediction.bytesBase64Encoded}` });
   } catch (err) {
     const googleErr = err?.response?.data?.error;
     const detail = googleErr?.message || err.message;

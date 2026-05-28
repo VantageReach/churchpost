@@ -5,7 +5,7 @@ export const PLATFORM_FORMATS = {
     {
       key: "feed_post", label: "Feed Post", icon: LayoutGrid, default: true,
       supports: ["text", "image", "video", "link"],
-      ratios: ["16:9", "1:1", "4:5"], recommendedRatio: "4:5",
+      ratios: ["4:5", "1:1", "1.91:1"], recommendedRatio: "4:5",
     },
     {
       key: "story", label: "Story", icon: Smartphone,

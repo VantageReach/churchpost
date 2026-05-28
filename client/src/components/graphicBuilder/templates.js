@@ -1,5 +1,16 @@
 import { fabric } from "fabric";
 
+const API_BASE = import.meta.env.VITE_API_URL || (import.meta.env.DEV ? "http://localhost:3001/api" : "/api");
+
+// Route R2 URLs through our server proxy so Fabric.js canvas doesn't taint on missing CORS headers
+function proxyLogoUrl(url) {
+  if (!url) return url;
+  if (/\.r2\.dev|\.r2\.cloudflarestorage\.com/.test(url)) {
+    return `${API_BASE}/proxy-image?url=${encodeURIComponent(url)}`;
+  }
+  return url;
+}
+
 function rgba(hex, alpha = 1) {
   const r = parseInt(hex.slice(1, 3), 16);
   const g = parseInt(hex.slice(3, 5), 16);
@@ -381,8 +392,9 @@ function applyBlank(canvas, w, h, primary) {
 }
 
 function loadLogo(canvas, url, x, y, size) {
+  const src = proxyLogoUrl(url);
   fabric.Image.fromURL(
-    url,
+    src,
     (img) => {
       if (!img) return;
       img.scaleToWidth(size);

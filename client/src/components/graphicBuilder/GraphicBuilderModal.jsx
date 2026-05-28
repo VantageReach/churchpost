@@ -19,7 +19,7 @@ const EXPORT_MULT = 2;
 // Curated church-relevant Iconify icons (prefix:name pairs)
 const CURATED_ICONS = [
   { prefix: "mdi", name: "cross", label: "Cross" },
-  { prefix: "mdi", name: "dove", label: "Dove" },
+  { prefix: "mdi", name: "bird", label: "Dove" },
   { prefix: "mdi", name: "heart", label: "Heart" },
   { prefix: "mdi", name: "star-four-points", label: "Star" },
   { prefix: "mdi", name: "book-open-variant", label: "Bible" },

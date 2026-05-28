@@ -774,7 +774,7 @@ function LogoControls({ obj, canvas, settings, onBack }) {
 }
 
 // ── Main modal ─────────────────────────────────────────────────────────────
-export default function GraphicBuilderModal({ open, onClose, onExport, prefill }) {
+export default function GraphicBuilderModal({ open, onClose, onExport, onFullGraphicGen, prefill }) {
   const settings = useOrgSettings();
   const { getToken } = useAuth();
 
@@ -1274,6 +1274,18 @@ export default function GraphicBuilderModal({ open, onClose, onExport, prefill }
             </div>
             <input ref={imageFileRef} type="file" accept="image/*" className="hidden" onChange={(e) => { if (e.target.files[0]) addImageToCanvas(e.target.files[0]); }} />
           </div>
+          {/* Full graphic generation link */}
+          {onFullGraphicGen && (
+            <div className="mt-3 flex justify-center">
+              <button
+                onClick={onFullGraphicGen}
+                className="flex items-center gap-1.5 text-[11px] font-medium text-violet-500 hover:text-violet-700 transition-colors"
+              >
+                <Sparkles className="h-3 w-3" />
+                Want a fully designed graphic? Generate with AI →
+              </button>
+            </div>
+          )}
         </div>
 
         {/* Right panel — controls */}

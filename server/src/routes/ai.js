@@ -369,6 +369,54 @@ router.post("/generate-image", requireOrgRole("ORG_ADMIN", "EDITOR"), async (req
   }
 });
 
+// POST /api/ai/generate-graphic — full designed graphic via Gemini 3 Pro Image
+router.post("/generate-graphic", requireOrgRole("ORG_ADMIN", "EDITOR"), async (req, res, next) => {
+  try {
+    const { prompt } = req.body;
+    if (!prompt?.trim()) return res.status(400).json({ error: "prompt is required" });
+    if (!process.env.GEMINI_API_KEY) {
+      return res.status(503).json({ error: "GEMINI_API_KEY is not configured." });
+    }
+
+    const enhancedPrompt = `You are a professional graphic designer creating social media content for a Christian church.
+
+Design a complete, polished social media graphic based on this request: "${prompt.trim()}"
+
+Requirements:
+- Professional typography with a clear text hierarchy (headline, subheading, body)
+- Beautiful, cohesive layout ready to post on Instagram or Facebook
+- Uplifting, warm, and welcoming church aesthetic
+- Include decorative design elements (borders, dividers, icons, textures)
+- High contrast so text is easy to read
+- Poster or flyer style — fully designed, not a raw photograph
+- No placeholder text — use realistic church copy based on the request`;
+
+    const geminiRes = await axios.post(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-pro-image:generateContent?key=${process.env.GEMINI_API_KEY}`,
+      {
+        contents: [{ parts: [{ text: enhancedPrompt }] }],
+        generationConfig: { responseModalities: ["IMAGE"] },
+      },
+      { timeout: 90000 }
+    );
+
+    const parts = geminiRes.data?.candidates?.[0]?.content?.parts ?? [];
+    const imagePart = parts.find((p) => p.inlineData?.data);
+    if (!imagePart) {
+      console.error("[AI Graphic] No image in response:", JSON.stringify(geminiRes.data).slice(0, 300));
+      return res.status(500).json({ error: "Graphic generation returned no result. Try rephrasing your prompt." });
+    }
+
+    res.json({ url: `data:${imagePart.inlineData.mimeType || "image/png"};base64,${imagePart.inlineData.data}` });
+  } catch (err) {
+    const googleErr = err?.response?.data?.error;
+    const detail = googleErr?.message || err.message;
+    const status = err?.response?.status;
+    console.error("[AI Graphic] status:", status, "error:", JSON.stringify(googleErr ?? err.message));
+    return res.status(500).json({ error: `Graphic generation failed: ${detail}` });
+  }
+});
+
 // GET /api/ai/models — list available Gemini models (temporary public diagnostic — remove after debugging)
 router.get("/models", async (req, res, next) => {
   try {

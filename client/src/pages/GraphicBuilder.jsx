@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Download, PenSquare, X } from "lucide-react";
 import GraphicBuilderModal from "../components/graphicBuilder/GraphicBuilderModal.jsx";
+import FullGraphicModal from "../components/graphicBuilder/FullGraphicModal.jsx";
 
 function downloadFile(file) {
   const url = URL.createObjectURL(file);
@@ -15,6 +16,7 @@ function downloadFile(file) {
 export default function GraphicBuilderPage() {
   const navigate = useNavigate();
   const [exportedFile, setExportedFile] = useState(null);
+  const [fullGraphicOpen, setFullGraphicOpen] = useState(false);
 
   function handleExport(file) {
     setExportedFile(file);
@@ -35,7 +37,17 @@ export default function GraphicBuilderPage() {
 
   return (
     <>
-      <GraphicBuilderModal open={true} onClose={handleClose} onExport={handleExport} />
+      <FullGraphicModal
+        open={fullGraphicOpen}
+        onClose={() => setFullGraphicOpen(false)}
+        onUse={handleExport}
+      />
+      <GraphicBuilderModal
+        open={true}
+        onClose={handleClose}
+        onExport={handleExport}
+        onFullGraphicGen={() => setFullGraphicOpen(true)}
+      />
 
       {/* Post-export action sheet */}
       {exportedFile && (

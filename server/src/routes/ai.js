@@ -344,10 +344,10 @@ router.post("/generate-image", requireOrgRole("ORG_ADMIN", "EDITOR"), async (req
     const enhancedPrompt = `${prompt.trim()}. High quality, visually striking image suitable for a Christian church social media post. Uplifting, professional aesthetic.`;
 
     const geminiRes = await axios.post(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp-image-generation:generateContent?key=${process.env.GEMINI_API_KEY}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=${process.env.GEMINI_API_KEY}`,
       {
         contents: [{ parts: [{ text: enhancedPrompt }] }],
-        generationConfig: { responseModalities: ["IMAGE"] },
+        generationConfig: { responseModalities: ["IMAGE", "TEXT"] },
       },
       { timeout: 60000 }
     );
@@ -367,6 +367,23 @@ router.post("/generate-image", requireOrgRole("ORG_ADMIN", "EDITOR"), async (req
     const status = err?.response?.status;
     console.error("[AI Image] status:", status, "error:", JSON.stringify(googleErr ?? err.message));
     return res.status(500).json({ error: `Image generation failed: ${detail}` });
+  }
+});
+
+// GET /api/ai/models — list available Gemini models (diagnostic)
+router.get("/models", requireOrgRole("ORG_ADMIN", "EDITOR"), async (req, res, next) => {
+  try {
+    if (!process.env.GEMINI_API_KEY) return res.status(503).json({ error: "GEMINI_API_KEY not set" });
+    const { data } = await axios.get(
+      `https://generativelanguage.googleapis.com/v1beta/models?key=${process.env.GEMINI_API_KEY}`,
+      { timeout: 15000 }
+    );
+    const imageModels = (data.models ?? []).filter((m) =>
+      m.supportedGenerationMethods?.includes("generateContent")
+    );
+    res.json({ total: data.models?.length, generateContentModels: imageModels.map((m) => m.name) });
+  } catch (err) {
+    next(err);
   }
 });
 

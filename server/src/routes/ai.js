@@ -383,32 +383,28 @@ router.post("/generate-graphic", requireOrgRole("ORG_ADMIN", "EDITOR"), async (r
     const { data } = await axios.post(
       "https://api.openai.com/v1/images/generations",
       {
-        model: "dall-e-3",
+        model: "gpt-image-1",
         prompt: enhancedPrompt,
         n: 1,
         size: "1024x1024",
-        quality: "standard",
+        quality: "medium",
       },
       {
         headers: {
           Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
           "Content-Type": "application/json",
         },
-        timeout: 90000,
+        timeout: 120000,
       }
     );
 
-    const imageUrl = data?.data?.[0]?.url;
-    if (!imageUrl) {
-      console.error("[AI Graphic] No image in DALL-E response:", JSON.stringify(data).slice(0, 200));
+    const b64 = data?.data?.[0]?.b64_json;
+    if (!b64) {
+      console.error("[AI Graphic] No image in response:", JSON.stringify(data).slice(0, 200));
       return res.status(500).json({ error: "Graphic generation returned no result. Try rephrasing your prompt." });
     }
 
-    // Fetch image server-side and return as base64 data URL — avoids client CORS issues
-    const imgRes = await axios.get(imageUrl, { responseType: "arraybuffer", timeout: 30000 });
-    const b64 = Buffer.from(imgRes.data).toString("base64");
-    const mime = imgRes.headers["content-type"] || "image/png";
-    res.json({ url: `data:${mime};base64,${b64}` });
+    res.json({ url: `data:image/png;base64,${b64}` });
   } catch (err) {
     const openaiErr = err?.response?.data?.error;
     const detail = openaiErr?.message || err.message;

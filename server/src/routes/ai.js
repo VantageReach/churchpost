@@ -386,16 +386,13 @@ router.post("/generate-graphic", requireOrgRole("ORG_ADMIN", "EDITOR"), async (r
       "Content-Type": "application/json",
     };
 
-    // Try gpt-image-1 first, fall back to dall-e-3
+    // Try newest models first, fall back down the chain
     let b64 = null;
     let usedModel = null;
 
-    for (const model of ["gpt-image-1", "dall-e-3"]) {
+    for (const model of ["gpt-image-2", "gpt-image-1", "gpt-image-1-mini"]) {
       try {
-        const body =
-          model === "gpt-image-1"
-            ? { model, prompt: enhancedPrompt, n: 1, size: "1024x1024", quality: "medium" }
-            : { model, prompt: enhancedPrompt, n: 1, size: "1024x1024", response_format: "b64_json" };
+        const body = { model, prompt: enhancedPrompt, n: 1, size: "1024x1024", quality: "medium" };
 
         const { data } = await axios.post(
           "https://api.openai.com/v1/images/generations",
@@ -404,12 +401,6 @@ router.post("/generate-graphic", requireOrgRole("ORG_ADMIN", "EDITOR"), async (r
         );
 
         b64 = data?.data?.[0]?.b64_json;
-        // dall-e-3 may return a URL instead of b64 if b64_json wasn't honoured
-        if (!b64 && data?.data?.[0]?.url) {
-          const imgResp = await axios.get(data.data[0].url, { responseType: "arraybuffer", timeout: 15000 });
-          b64 = Buffer.from(imgResp.data).toString("base64");
-        }
-
         if (b64) { usedModel = model; break; }
         console.warn(`[AI Graphic] ${model} returned no image data — trying next model`);
       } catch (modelErr) {

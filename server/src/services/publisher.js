@@ -3,6 +3,13 @@ import prisma from "../lib/prisma.js";
 import { decrypt, encrypt } from "../lib/encryption.js";
 import { enqueuePostMetricsSync } from "../workers/analyticsWorker.js";
 
+// Normalize formats field — handles both old string and new array shape
+function getFormatsArray(formats, platform) {
+  const val = formats?.[platform];
+  if (!val) return [platform === "youtube" || platform === "tiktok" ? "standard" : "feed_post"];
+  return Array.isArray(val) ? val : [val];
+}
+
 const FB = "https://graph.facebook.com/v21.0";
 
 function fbPermalink(externalId, pageId) {
@@ -134,11 +141,10 @@ function isMetaAuthError(err) {
 
 // ── Facebook ──────────────────────────────────────────────────────────────────
 
-async function publishFacebook(post, account) {
+async function publishFacebookFormat(post, account, format) {
   const token = decrypt(account.accessToken);
   const pageId = account.accountId;
   const caption = post.captions?.facebook || Object.values(post.captions ?? {})[0] || "";
-  const format = post.formats?.facebook ?? "feed_post";
   const images = (post.mediaAssets ?? []).filter((a) => a.type === "IMAGE");
   const videos = (post.mediaAssets ?? []).filter((a) => a.type === "VIDEO");
 
@@ -240,12 +246,11 @@ async function publishFacebook(post, account) {
 
 // ── Instagram ─────────────────────────────────────────────────────────────────
 
-async function publishInstagram(post, account) {
+async function publishInstagramFormat(post, account, format) {
   // Instagram Content Publishing requires a User access token, not a Page token
   const token = account.refreshToken ? decrypt(account.refreshToken) : decrypt(account.accessToken);
   const igId = account.accountId;
   const caption = post.captions?.instagram || post.captions?.facebook || Object.values(post.captions ?? {})[0] || "";
-  const format = post.formats?.instagram ?? "feed_post";
   const images = (post.mediaAssets ?? []).filter((a) => a.type === "IMAGE");
   const videos = (post.mediaAssets ?? []).filter((a) => a.type === "VIDEO");
 
@@ -393,9 +398,8 @@ async function getValidGoogleToken(account) {
 
 // ── YouTube ───────────────────────────────────────────────────────────────────
 
-async function publishYouTube(post, account) {
+async function publishYouTubeFormat(post, account, format) {
   const token = await getValidGoogleToken(account);
-  const format = post.formats?.youtube ?? "standard";
   const videos = (post.mediaAssets ?? []).filter((a) => a.type === "VIDEO");
   if (videos.length === 0) throw new Error("YouTube requires a video file.");
 
@@ -483,9 +487,8 @@ async function getValidTikTokToken(account) {
 
 // ── TikTok ────────────────────────────────────────────────────────────────────
 
-async function publishTikTok(post, account) {
+async function publishTikTokFormat(post, account, format) {
   const token = await getValidTikTokToken(account);
-  const format = post.formats?.tiktok ?? "standard";
   const title = (post.captions?.tiktok || post.captions?.facebook || Object.values(post.captions ?? {})[0] || "").slice(0, 2200);
   const ttMeta = post.meta?.tiktok ?? {};
 
@@ -584,44 +587,67 @@ export async function publishPost(postId) {
       continue;
     }
 
-    try {
-      let result;
-      if (platform === "facebook") {
-        try {
-          result = await publishFacebook(post, account);
-        } catch (err) {
-          if (isMetaAuthError(err)) {
-            console.log(`[Publisher] Facebook auth error — refreshing token and retrying`);
-            const { pageToken, userToken } = await refreshMetaPageToken(account);
-            account = { ...account, accessToken: encrypt(pageToken), refreshToken: encrypt(userToken) };
-            result = await publishFacebook(post, account);
-          } else throw err;
-        }
-      } else if (platform === "instagram") {
-        try {
-          result = await publishInstagram(post, account);
-        } catch (err) {
-          if (isMetaAuthError(err)) {
-            console.log(`[Publisher] Instagram auth error — refreshing token and retrying`);
-            const { pageToken, userToken, igId } = await refreshMetaPageToken(account);
-            account = { ...account, accessToken: encrypt(pageToken), refreshToken: encrypt(userToken), ...(igId && { accountId: igId }) };
-            result = await publishInstagram(post, account);
-          } else throw err;
-        }
-      } else if (platform === "youtube") result = await publishYouTube(post, account);
-      else if (platform === "tiktok") result = await publishTikTok(post, account);
-      else throw new Error(`Publisher not implemented for ${platform}`);
+    const formats = getFormatsArray(post.formats, platform);
+    const formatErrors = [];
+    let lastResult = null;
 
-      platformResults.push({ platform, status: "published", externalId: result.externalId, permalink: result.permalink ?? null, publishedAt: new Date() });
-      successCount++;
-    } catch (err) {
-      const metaErr = err?.response?.data?.error;
-      const error = metaErr
-        ? `${metaErr.message} (code ${metaErr.code}, type ${metaErr.type})`
-        : err.message;
-      console.error(`[Publisher] ${platform} failed for post ${postId}:`, err?.response?.data ?? err.message);
-      platformResults.push({ platform, status: "failed", error });
+    for (const format of formats) {
+      try {
+        let result;
+        if (platform === "facebook") {
+          try {
+            result = await publishFacebookFormat(post, account, format);
+          } catch (err) {
+            if (isMetaAuthError(err)) {
+              console.log(`[Publisher] Facebook auth error — refreshing token and retrying`);
+              const { pageToken, userToken } = await refreshMetaPageToken(account);
+              account = { ...account, accessToken: encrypt(pageToken), refreshToken: encrypt(userToken) };
+              result = await publishFacebookFormat(post, account, format);
+            } else throw err;
+          }
+        } else if (platform === "instagram") {
+          try {
+            result = await publishInstagramFormat(post, account, format);
+          } catch (err) {
+            if (isMetaAuthError(err)) {
+              console.log(`[Publisher] Instagram auth error — refreshing token and retrying`);
+              const { pageToken, userToken, igId } = await refreshMetaPageToken(account);
+              account = { ...account, accessToken: encrypt(pageToken), refreshToken: encrypt(userToken), ...(igId && { accountId: igId }) };
+              result = await publishInstagramFormat(post, account, format);
+            } else throw err;
+          }
+        } else if (platform === "youtube") result = await publishYouTubeFormat(post, account, format);
+        else if (platform === "tiktok") result = await publishTikTokFormat(post, account, format);
+        else throw new Error(`Publisher not implemented for ${platform}`);
+
+        console.log(`[Publisher] ${platform}:${format} published for post ${postId}`);
+        lastResult = result;
+      } catch (err) {
+        const metaErr = err?.response?.data?.error;
+        const errMsg = metaErr
+          ? `${metaErr.message} (code ${metaErr.code}, type ${metaErr.type})`
+          : err.message;
+        console.error(`[Publisher] ${platform}:${format} failed for post ${postId}:`, err?.response?.data ?? err.message);
+        formatErrors.push(`${format}: ${errMsg}`);
+      }
+    }
+
+    const allFailed = formatErrors.length === formats.length;
+    const anyFailed = formatErrors.length > 0;
+
+    if (allFailed) {
+      platformResults.push({ platform, status: "failed", error: formatErrors.join("; ") });
       failCount++;
+    } else {
+      platformResults.push({
+        platform,
+        status: "published",
+        externalId: lastResult?.externalId ?? null,
+        permalink: lastResult?.permalink ?? null,
+        publishedAt: new Date(),
+        ...(anyFailed && { error: `Partial: ${formatErrors.join("; ")}` }),
+      });
+      successCount++;
     }
   }
 

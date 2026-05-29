@@ -80,48 +80,58 @@ export function getDefaultFormat(platform) {
   return fmts?.find((f) => f.default)?.key ?? fmts?.[0]?.key ?? "feed_post";
 }
 
+// Always returns an array of format keys — handles both old string and new array shapes
+export function getFormatsArray(formats, platform) {
+  const val = formats?.[platform];
+  if (!val) return [getDefaultFormat(platform)];
+  return Array.isArray(val) ? val : [val];
+}
+
 export function buildDefaultFormats(platforms) {
   const result = {};
-  platforms.forEach((p) => { result[p] = getDefaultFormat(p); });
+  platforms.forEach((p) => { result[p] = [getDefaultFormat(p)]; });
   return result;
 }
 
-export function getFormatWarnings(platform, formatKey, mediaAssets = []) {
-  const config = getFormatConfig(platform, formatKey);
-  if (!config) return [];
-
+export function getFormatWarnings(platform, formatKeys, mediaAssets = []) {
+  // Accept both old string and new array
+  const keys = Array.isArray(formatKeys) ? formatKeys : [formatKeys];
+  const seen = new Set();
   const warnings = [];
-  const mediaCount = mediaAssets.length;
-  const videoAsset = mediaAssets.find((a) => a.type === "VIDEO");
-  const videoDurationSec = videoAsset?.duration ?? null;
 
-  // Requires media
-  const requiresMedia = ["story", "reel", "short", "watch_video"].includes(formatKey) ||
-    (platform === "tiktok" && formatKey === "standard");
-  if (requiresMedia && mediaCount === 0) {
-    warnings.push({ id: "media_required", message: `${config.label}s require a photo or video.` });
-  }
+  keys.forEach((formatKey) => {
+    const config = getFormatConfig(platform, formatKey);
+    if (!config) return;
 
-  // Video too long
-  if (config.maxVideoSec && videoDurationSec !== null && videoDurationSec > config.maxVideoSec) {
-    const max = config.maxVideoSec >= 60
-      ? `${Math.round(config.maxVideoSec / 60)} min`
-      : `${config.maxVideoSec} sec`;
-    warnings.push({ id: "video_too_long", message: `${config.label} max ${max} — trim your video.`, action: "trim" });
-  }
+    const mediaCount = mediaAssets.length;
+    const videoAsset = mediaAssets.find((a) => a.type === "VIDEO");
+    const videoDurationSec = videoAsset?.duration ?? null;
 
-  // Video too short (Facebook Watch)
-  if (config.minVideoSec && videoDurationSec !== null && videoDurationSec < config.minVideoSec) {
-    warnings.push({ id: "video_too_short", message: "Facebook Watch requires 3+ minute videos." });
-  }
+    const requiresMedia = ["story", "reel", "short", "watch_video"].includes(formatKey) ||
+      (platform === "tiktok" && formatKey === "standard");
+    if (requiresMedia && mediaCount === 0 && !seen.has("media_required")) {
+      seen.add("media_required");
+      warnings.push({ id: `media_required_${formatKey}`, message: `${config.label}s require a photo or video.` });
+    }
 
-  // Carousel / slideshow item counts
-  if (config.minItems && mediaCount > 0 && mediaCount < config.minItems) {
-    warnings.push({ id: "too_few_items", message: `Add at least ${config.minItems} items for a ${config.label.toLowerCase()}.` });
-  }
-  if (config.maxItems && mediaCount > config.maxItems) {
-    warnings.push({ id: "too_many_items", message: `${config.label} max ${config.maxItems} items — remove some.` });
-  }
+    if (config.maxVideoSec && videoDurationSec !== null && videoDurationSec > config.maxVideoSec) {
+      const max = config.maxVideoSec >= 60
+        ? `${Math.round(config.maxVideoSec / 60)} min`
+        : `${config.maxVideoSec} sec`;
+      warnings.push({ id: `video_too_long_${formatKey}`, message: `${config.label} max ${max} — trim your video.`, action: "trim" });
+    }
+
+    if (config.minVideoSec && videoDurationSec !== null && videoDurationSec < config.minVideoSec) {
+      warnings.push({ id: `video_too_short_${formatKey}`, message: "Facebook Watch requires 3+ minute videos." });
+    }
+
+    if (config.minItems && mediaCount > 0 && mediaCount < config.minItems) {
+      warnings.push({ id: `too_few_items_${formatKey}`, message: `Add at least ${config.minItems} items for a ${config.label.toLowerCase()}.` });
+    }
+    if (config.maxItems && mediaCount > config.maxItems) {
+      warnings.push({ id: `too_many_items_${formatKey}`, message: `${config.label} max ${config.maxItems} items — remove some.` });
+    }
+  });
 
   return warnings;
 }

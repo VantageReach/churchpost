@@ -1,7 +1,7 @@
-import { AlertTriangle } from "lucide-react";
+import { AlertTriangle, Check } from "lucide-react";
 import { cn } from "../../lib/utils.js";
 import { getPlatformMeta } from "../shared/PlatformBadge.jsx";
-import { PLATFORM_FORMATS, getFormatWarnings, RATIO_PREVIEW } from "../../lib/postFormats.js";
+import { PLATFORM_FORMATS, getFormatWarnings, getFormatsArray, RATIO_PREVIEW } from "../../lib/postFormats.js";
 
 function FormatPill({ fmt, active, onClick, platformColor }) {
   const Icon = fmt.icon;
@@ -13,26 +13,27 @@ function FormatPill({ fmt, active, onClick, platformColor }) {
       type="button"
       onClick={onClick}
       className={cn(
-        "group flex items-center gap-1.5 pl-2.5 pr-3 py-1.5 rounded-full text-[12px] font-medium border transition-all duration-150 whitespace-nowrap",
+        "group flex items-center gap-1.5 pl-2 pr-3 py-1.5 rounded-full text-[12px] font-medium border transition-all duration-150 whitespace-nowrap",
         active
           ? "border-transparent text-white shadow-sm"
           : "border-gray-200 bg-white text-gray-500 hover:border-gray-300 hover:text-gray-700"
       )}
       style={active ? { background: platformColor } : {}}
     >
-      {/* Aspect ratio thumbnail */}
-      {preview && (
+      {/* Checkmark / ratio thumbnail */}
+      {active ? (
+        <span className="flex items-center justify-center h-4 w-4 rounded-full bg-white/25 flex-shrink-0">
+          <Check className="h-2.5 w-2.5 text-white" strokeWidth={3} />
+        </span>
+      ) : preview ? (
         <span
-          className={cn(
-            "inline-flex items-center justify-center flex-shrink-0 rounded-[2px] border",
-            active ? "border-white/40 bg-white/20" : "border-gray-300 bg-gray-100"
-          )}
+          className="inline-flex items-center justify-center flex-shrink-0 rounded-[2px] border border-gray-300 bg-gray-100"
           style={{
             width: preview.w <= preview.h ? "8px" : "12px",
             height: preview.w <= preview.h ? "12px" : "8px",
           }}
         />
-      )}
+      ) : null}
       <Icon className="h-3 w-3 flex-shrink-0" />
       {fmt.label}
     </button>
@@ -66,8 +67,8 @@ export default function FormatSelector({ platforms, formats, mediaAssets, onForm
       {platforms.map((platform) => {
         const meta = getPlatformMeta(platform);
         const platformFormats = PLATFORM_FORMATS[platform] ?? [];
-        const activeFormat = formats[platform];
-        const warnings = getFormatWarnings(platform, activeFormat, mediaAssets);
+        const activeFormats = getFormatsArray(formats, platform);
+        const warnings = getFormatWarnings(platform, activeFormats, mediaAssets);
 
         return (
           <div key={platform} className="space-y-2">
@@ -85,12 +86,18 @@ export default function FormatSelector({ platforms, formats, mediaAssets, onForm
                 <FormatPill
                   key={fmt.key}
                   fmt={fmt}
-                  active={activeFormat === fmt.key}
+                  active={activeFormats.includes(fmt.key)}
                   onClick={() => onFormatChange(platform, fmt.key)}
                   platformColor={meta.color}
                 />
               ))}
             </div>
+
+            {activeFormats.length > 1 && (
+              <p className="text-[10px] text-gray-400">
+                Will publish as {activeFormats.length} separate {meta.label} posts
+              </p>
+            )}
 
             {warnings.length > 0 && (
               <div className="space-y-1.5">

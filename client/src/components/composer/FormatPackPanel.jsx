@@ -1,7 +1,7 @@
 import { CheckCircle2, AlertCircle, Crop } from "lucide-react";
 import { cn } from "../../lib/utils.js";
 import { getPlatformMeta } from "../shared/PlatformBadge.jsx";
-import { getFormatConfig, RATIO_PREVIEW } from "../../lib/postFormats.js";
+import { getFormatConfig, getFormatsArray, RATIO_PREVIEW } from "../../lib/postFormats.js";
 
 function CropChip({ platform, format, ratio, status, onClick }) {
   const meta = getPlatformMeta(platform);
@@ -47,16 +47,17 @@ export default function FormatPackPanel({ platforms, formats, assets, cropVarian
   const seen = new Set();
 
   platforms.forEach((platform) => {
-    const format = formats[platform];
-    if (!format) return;
-    const config = getFormatConfig(platform, format);
-    if (!config) return;
-    const primaryRatio = config.recommendedRatio ?? config.ratios?.[0] ?? "1:1";
-    const key = `${platform}__${format}__${primaryRatio}`;
-    if (!seen.has(key)) {
-      seen.add(key);
-      cropNeeds.push({ platform, format, ratio: primaryRatio });
-    }
+    const fmtArray = getFormatsArray(formats, platform);
+    fmtArray.forEach((format) => {
+      const config = getFormatConfig(platform, format);
+      if (!config) return;
+      const primaryRatio = config.recommendedRatio ?? config.ratios?.[0] ?? "1:1";
+      const key = `${platform}__${format}__${primaryRatio}`;
+      if (!seen.has(key)) {
+        seen.add(key);
+        cropNeeds.push({ platform, format, ratio: primaryRatio });
+      }
+    });
   });
 
   // Deduplicate by ratio — if two platform/format combos share a ratio,

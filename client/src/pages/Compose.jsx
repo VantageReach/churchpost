@@ -13,7 +13,7 @@ import AiPanel from "../components/composer/AiPanel.jsx";
 import GraphicBuilderModal from "../components/graphicBuilder/GraphicBuilderModal.jsx";
 import FullGraphicModal from "../components/graphicBuilder/FullGraphicModal.jsx";
 import { useCreatePost, useUpdatePost, useUploadMedia, useAiSuggest, usePublishPost } from "../hooks/usePosts.js";
-import { buildDefaultFormats, getDefaultFormat, getFormatConfig } from "../lib/postFormats.js";
+import { buildDefaultFormats, getDefaultFormat, getFormatConfig, getFormatsArray } from "../lib/postFormats.js";
 
 const DEFAULT_PLATFORMS = ["facebook", "instagram"];
 
@@ -84,14 +84,23 @@ export default function Compose() {
     setFormats((prev) => {
       const updated = {};
       newPlatforms.forEach((p) => {
-        updated[p] = prev[p] ?? getDefaultFormat(p);
+        updated[p] = prev[p] ?? [getDefaultFormat(p)];
       });
       return updated;
     });
   }
 
-  function handleFormatChange(platform, format) {
-    setFormats((prev) => ({ ...prev, [platform]: format }));
+  function handleFormatChange(platform, formatKey) {
+    setFormats((prev) => {
+      const current = getFormatsArray(prev, platform);
+      const isSelected = current.includes(formatKey);
+      // Keep at least one format selected per platform
+      if (isSelected && current.length === 1) return prev;
+      const next = isSelected
+        ? current.filter((k) => k !== formatKey)
+        : [...current, formatKey];
+      return { ...prev, [platform]: next };
+    });
   }
 
   function handleMetaChange(platform, meta) {
@@ -130,7 +139,7 @@ export default function Compose() {
 
   function openVideoModal(asset, platform = null, format = null, ratio = null) {
     const targetPlatform = platform ?? platforms[0];
-    const targetFormat = format ?? formats[targetPlatform];
+    const targetFormat = format ?? getFormatsArray(formats, targetPlatform)[0];
     const config = getFormatConfig(targetPlatform, targetFormat);
     const targetRatio = ratio ?? config?.recommendedRatio ?? config?.ratios?.[0] ?? "9:16";
     setVideoTarget({ asset, platform: targetPlatform, format: targetFormat, ratio: targetRatio });
@@ -148,7 +157,7 @@ export default function Compose() {
   // Open crop modal — from thumbnail click (no specific target) or from format pack
   function openCropModal(asset, platform = null, format = null, ratio = null) {
     const targetPlatform = platform ?? platforms[0];
-    const targetFormat = format ?? formats[targetPlatform];
+    const targetFormat = format ?? getFormatsArray(formats, targetPlatform)[0];
     const config = getFormatConfig(targetPlatform, targetFormat);
     const targetRatio = ratio ?? config?.recommendedRatio ?? config?.ratios?.[0] ?? "1:1";
     setCropTarget({ asset, platform: targetPlatform, format: targetFormat, ratio: targetRatio });

@@ -188,9 +188,11 @@ export default function CaptionEditor({ platforms, captions, onChange, formats =
   const { stream, cancel, streaming } = useStreamCaption();
 
   const currentTab = platforms.includes(activeTab) ? activeTab : platforms[0];
-  const currentFormat = formats[currentTab];
-  const isYouTubeStandard = currentTab === "youtube" && currentFormat === "standard";
-  const isStory = currentFormat === "story";
+  const currentFormats = Array.isArray(formats[currentTab])
+    ? formats[currentTab]
+    : formats[currentTab] ? [formats[currentTab]] : [];
+  const isYouTubeStandard = currentTab === "youtube" && currentFormats.includes("standard");
+  const isStory = currentFormats.includes("story") && currentFormats.length === 1;
 
   function handleChange(platform, value) {
     if (useGlobal) {
@@ -265,7 +267,7 @@ export default function CaptionEditor({ platforms, captions, onChange, formats =
   }
 
   const text = captions[currentTab] || "";
-  const captionLimit = currentFormat === "short" && currentTab === "youtube"
+  const captionLimit = currentFormats.includes("short") && currentTab === "youtube"
     ? 100
     : (CHAR_LIMITS[currentTab] ?? 2200);
   const hasText = text.trim().length > 0;
@@ -417,14 +419,14 @@ export default function CaptionEditor({ platforms, captions, onChange, formats =
           )}
 
           {/* YouTube Short caption limit note */}
-          {currentTab === "youtube" && currentFormat === "short" && (
+          {currentTab === "youtube" && currentFormats.includes("short") && (
             <p className="text-[11px] text-gray-400 px-1">
               ⓘ YouTube Shorts captions are limited to 100 characters.
             </p>
           )}
 
           {/* TikTok Photo Mode note */}
-          {currentTab === "tiktok" && currentFormat === "photo_mode" && (
+          {currentTab === "tiktok" && currentFormats.includes("photo_mode") && (
             <p className="text-[11px] text-gray-400 px-1">
               ⓘ Background music can be added in TikTok after posting.
             </p>

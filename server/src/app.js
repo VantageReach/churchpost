@@ -19,9 +19,9 @@ app.use(
     contentSecurityPolicy: {
       directives: {
         defaultSrc: ["'self'"],
-        scriptSrc: ["'self'", "'unsafe-inline'", "https://*.clerk.accounts.dev", "https://cdn.jsdelivr.net"],
-        scriptSrcElem: ["'self'", "'unsafe-inline'", "https://*.clerk.accounts.dev", "https://cdn.jsdelivr.net"],
-        connectSrc: ["'self'", "https://*.clerk.accounts.dev", "https://api.clerk.dev", "https://api.iconify.design", "https://app.churchpost.social"],
+        scriptSrc: ["'self'", "'unsafe-inline'", "https://*.clerk.accounts.dev", "https://*.churchpost.social", "https://cdn.jsdelivr.net"],
+        scriptSrcElem: ["'self'", "'unsafe-inline'", "https://*.clerk.accounts.dev", "https://*.churchpost.social", "https://cdn.jsdelivr.net"],
+        connectSrc: ["'self'", "https://*.clerk.accounts.dev", "https://api.clerk.dev", "https://*.churchpost.social", "https://*.clerk.services", "https://api.iconify.design"],
         imgSrc: ["'self'", "data:", "https:", "blob:"],
         styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
         fontSrc: ["'self'", "https://fonts.gstatic.com", "data:"],

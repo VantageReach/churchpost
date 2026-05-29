@@ -117,9 +117,10 @@ export default function Calendar() {
     const firstPlatform = post.platforms?.[0];
     const platformMeta = firstPlatform ? getPlatformMeta(firstPlatform) : null;
 
+    const fullTitle = post.title || Object.values(post.captions ?? {})[0] || "Untitled";
     return {
       id: post.id,
-      title: post.title || Object.values(post.captions ?? {})[0]?.slice(0, 40) || "Untitled",
+      title: fullTitle,
       start: dateField,
       allDay: post.status === "DRAFT" && !post.scheduledAt,
       backgroundColor: platformMeta ? platformMeta.color + "22" : style.bg,
@@ -386,7 +387,8 @@ export default function Calendar() {
           text-transform: uppercase; color: #9ca3af;
         }
         .fc .fc-daygrid-day-number { font-size: 12px; font-weight: 600; color: #374151; padding: 6px 8px; }
-        .fc-post-event { border-radius: 6px !important; padding: 1px 5px !important; font-size: 11px !important; font-weight: 600 !important; cursor: pointer !important; }
+        .fc-post-event { border-radius: 6px !important; padding: 1px 5px !important; font-size: 11px !important; font-weight: 600 !important; cursor: pointer !important; overflow: hidden !important; }
+        .fc-post-event .fc-event-title { overflow: hidden !important; text-overflow: ellipsis !important; white-space: nowrap !important; }
         .fc-national-chip { border-radius: 4px !important; padding: 1px 4px !important; font-size: 10px !important; font-weight: 500 !important; opacity: 0.85; cursor: default !important; pointer-events: none !important; }
         .fc .fc-daygrid-event-harness { margin-top: 1px !important; }
         .fc .fc-toolbar { display: none !important; }

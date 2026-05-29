@@ -12,9 +12,11 @@ import {
   Sparkles,
   X,
   BarChart2,
+  Shield,
 } from "lucide-react";
 import { cn } from "../../lib/utils.js";
 import { useOrgSettings } from "../../hooks/useOrgSettings.js";
+import { usePlatformAdmin } from "../../hooks/usePlatformAdmin.js";
 
 const NAV_SECTIONS = [
   {
@@ -45,6 +47,7 @@ export default function Sidebar({ open, onClose }) {
   const { user } = useUser();
   const navigate = useNavigate();
   const settings = useOrgSettings();
+  const { isPlatformAdmin } = usePlatformAdmin();
 
   async function handleSignOut() {
     await signOut();
@@ -102,6 +105,42 @@ export default function Sidebar({ open, onClose }) {
 
       {/* Navigation */}
       <nav className="flex-1 overflow-y-auto px-2 py-4 space-y-5">
+        {isPlatformAdmin && (
+          <div>
+            <p className="px-2 mb-1 text-[9px] font-bold uppercase tracking-[0.12em] text-violet-400/60">
+              Platform
+            </p>
+            <ul className="space-y-0.5">
+              <li>
+                <NavLink
+                  to="/admin"
+                  onClick={onClose}
+                  className={({ isActive }) =>
+                    cn(
+                      "flex items-center gap-2.5 px-2.5 py-[7px] rounded-lg text-[13px] font-medium transition-all duration-150 outline-none focus-visible:ring-2 focus-visible:ring-white/20",
+                      isActive
+                        ? "text-white"
+                        : "text-violet-400/70 hover:text-violet-300 hover:bg-white/[0.05]"
+                    )
+                  }
+                  style={({ isActive }) =>
+                    isActive ? { backgroundColor: "rgba(139,92,246,0.15)" } : {}
+                  }
+                >
+                  {({ isActive }) => (
+                    <>
+                      <Shield
+                        className="h-[15px] w-[15px] flex-shrink-0"
+                        style={isActive ? { color: "#a78bfa" } : {}}
+                      />
+                      <span className="truncate">Platform Admin</span>
+                    </>
+                  )}
+                </NavLink>
+              </li>
+            </ul>
+          </div>
+        )}
         {NAV_SECTIONS.map((section) => (
           <div key={section.label}>
             <p className="px-2 mb-1 text-[9px] font-bold uppercase tracking-[0.12em] text-white/20">

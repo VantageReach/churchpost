@@ -17,6 +17,8 @@ import GraphicBuilder from "./pages/GraphicBuilder.jsx";
 import Settings from "./pages/Settings.jsx";
 import Privacy from "./pages/Privacy.jsx";
 import Terms from "./pages/Terms.jsx";
+import AdminDashboard from "./pages/admin/AdminDashboard.jsx";
+import AdminOrgDetail from "./pages/admin/AdminOrgDetail.jsx";
 
 function Spinner() {
   return (
@@ -67,6 +69,8 @@ function AppShell() {
           <Route path="bulk-upload" element={<BulkUpload />} />
           <Route path="settings" element={<Settings />} />
           <Route path="settings/:tab" element={<Settings />} />
+          <Route path="admin" element={<AdminDashboard />} />
+          <Route path="admin/orgs/:id" element={<AdminOrgDetail />} />
         </Route>
       </Route>
       <Route path="/privacy" element={<Privacy />} />

@@ -2,6 +2,7 @@ import { Router } from "express";
 import { protect, resolveOrgAndUser } from "../middleware/auth.js";
 import orgSettingsRouter from "./orgSettings.js";
 import orgsRouter from "./orgs.js";
+import adminRouter from "./admin.js";
 import postsRouter from "./posts.js";
 import mediaRouter from "./media.js";
 import aiRouter from "./ai.js";
@@ -29,6 +30,7 @@ router.use("/integrations/google-calendar", publicGoogleCalendarRouter);
 // ── Protected routes (no org context required — for onboarding) ───────────────
 router.use(protect);
 router.use("/orgs", orgsRouter);
+router.use("/admin", adminRouter);
 
 // ── Protected routes (org context required) ───────────────────────────────────
 router.use(resolveOrgAndUser);

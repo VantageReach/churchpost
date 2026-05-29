@@ -11,6 +11,7 @@ import VideoProcessModal from "../components/composer/VideoProcessModal.jsx";
 import SchedulePicker from "../components/composer/SchedulePicker.jsx";
 import AiPanel from "../components/composer/AiPanel.jsx";
 import GraphicBuilderModal from "../components/graphicBuilder/GraphicBuilderModal.jsx";
+import FullGraphicModal from "../components/graphicBuilder/FullGraphicModal.jsx";
 import { useCreatePost, useUpdatePost, useUploadMedia, useAiSuggest, usePublishPost } from "../hooks/usePosts.js";
 import { buildDefaultFormats, getDefaultFormat, getFormatConfig } from "../lib/postFormats.js";
 
@@ -53,6 +54,7 @@ export default function Compose() {
   const [error, setError] = useState(null);
   const [graphicBuilderOpen, setGraphicBuilderOpen] = useState(false);
   const [graphicPrefill, setGraphicPrefill] = useState(null);
+  const [aiGraphicOpen, setAiGraphicOpen] = useState(false);
   const [videoTarget, setVideoTarget] = useState(null); // { asset, platform, format, ratio }
 
   const createPost = useCreatePost();
@@ -175,6 +177,16 @@ export default function Compose() {
     }
   }
 
+  async function handleAiGraphicUse(file) {
+    setAiGraphicOpen(false);
+    try {
+      const uploaded = await uploadMedia.mutateAsync([file]);
+      setMediaAssets((prev) => [...prev, ...uploaded]);
+    } catch {
+      setError("Failed to attach AI graphic. Please try again.");
+    }
+  }
+
   async function handleAiSuggest(payload) {
     try {
       const suggestions = await aiSuggest.mutateAsync(payload);
@@ -278,6 +290,11 @@ export default function Compose() {
       onExport={handleGraphicExport}
       prefill={graphicPrefill}
     />
+    <FullGraphicModal
+      open={aiGraphicOpen}
+      onClose={() => setAiGraphicOpen(false)}
+      onUse={handleAiGraphicUse}
+    />
     <div className="flex flex-col h-full">
       {/* Header */}
       <div className="flex items-center justify-between px-4 lg:px-8 py-4 lg:py-5 border-b border-gray-100 bg-[#F7F7F5]">
@@ -373,6 +390,7 @@ export default function Compose() {
               onRemove={handleRemoveMedia}
               isUploading={isUploading}
               onOpenGraphicBuilder={() => openGraphicBuilder()}
+              onOpenAiGenerate={() => setAiGraphicOpen(true)}
               onCropAsset={(asset) => openCropModal(asset)}
               onProcessVideo={(asset) => openVideoModal(asset)}
               cropVariants={cropVariants}

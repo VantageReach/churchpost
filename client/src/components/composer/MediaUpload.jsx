@@ -1,5 +1,5 @@
 import { useDropzone } from "react-dropzone";
-import { Upload, X, Film, PenSquare, Crop, CheckCircle2, Scissors } from "lucide-react";
+import { Upload, X, Film, PenSquare, Crop, CheckCircle2, Scissors, Sparkles } from "lucide-react";
 import { cn } from "../../lib/utils.js";
 
 function MediaThumb({ asset, onRemove, onCrop, onProcessVideo, isCropped }) {
@@ -73,7 +73,7 @@ function MediaThumb({ asset, onRemove, onCrop, onProcessVideo, isCropped }) {
   );
 }
 
-export default function MediaUpload({ assets, onAdd, onRemove, isUploading, onOpenGraphicBuilder, onCropAsset, onProcessVideo, cropVariants = {} }) {
+export default function MediaUpload({ assets, onAdd, onRemove, isUploading, onOpenGraphicBuilder, onOpenAiGenerate, onCropAsset, onProcessVideo, cropVariants = {} }) {
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     accept: {
       "image/jpeg": [],
@@ -90,23 +90,23 @@ export default function MediaUpload({ assets, onAdd, onRemove, isUploading, onOp
 
   return (
     <div className="space-y-3">
-      {/* Action row: upload + build graphic */}
+      {/* Action row: upload + build graphic + AI generate */}
       {assets.length < 10 && (
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-3 gap-2.5">
           {/* Upload */}
           <div className="space-y-1.5">
-            <p className="text-[10px] font-semibold uppercase tracking-[0.08em] text-gray-400">Have a photo or video?</p>
+            <p className="text-[10px] font-semibold uppercase tracking-[0.08em] text-gray-400">Upload</p>
             <div
               {...getRootProps()}
               className={cn(
-                "flex flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed px-4 py-6 cursor-pointer transition-all duration-150",
+                "flex flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed px-3 py-5 cursor-pointer transition-all duration-150",
                 isDragActive
                   ? "border-indigo-400 bg-indigo-50"
                   : "border-gray-200 bg-gray-50/50 hover:border-gray-300 hover:bg-gray-50"
               )}
             >
               <input {...getInputProps()} />
-              <div className="h-9 w-9 rounded-xl bg-gray-100 flex items-center justify-center">
+              <div className="h-8 w-8 rounded-xl bg-gray-100 flex items-center justify-center">
                 {isUploading ? (
                   <div className="h-4 w-4 rounded-full border-2 border-gray-300 border-t-indigo-500 animate-spin" />
                 ) : (
@@ -114,33 +114,49 @@ export default function MediaUpload({ assets, onAdd, onRemove, isUploading, onOp
                 )}
               </div>
               <div className="text-center">
-                <p className="text-[12px] font-semibold text-gray-600">
-                  {isDragActive ? "Drop files here" : "Upload from device"}
+                <p className="text-[11px] font-semibold text-gray-600">
+                  {isDragActive ? "Drop here" : "From device"}
                 </p>
-                <p className="text-[10px] text-gray-400 mt-0.5">
-                  Images, video · {10 - assets.length} remaining
-                </p>
+                <p className="text-[10px] text-gray-400 mt-0.5">{10 - assets.length} remaining</p>
               </div>
             </div>
           </div>
 
           {/* Build graphic */}
           <div className="space-y-1.5">
-            <p className="text-[10px] font-semibold uppercase tracking-[0.08em]" style={{ color: "var(--brand-primary, #6366f1)" }}>Need to make a graphic?</p>
+            <p className="text-[10px] font-semibold uppercase tracking-[0.08em]" style={{ color: "var(--brand-primary, #6366f1)" }}>Build</p>
             <button
               type="button"
               onClick={onOpenGraphicBuilder}
-              className="w-full flex flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed px-4 py-6 transition-all duration-150 group"
+              className="w-full flex flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed px-3 py-5 transition-all duration-150"
               style={{ borderColor: "var(--brand-primary, #6366f1)40", background: "var(--brand-primary, #6366f1)08" }}
               onMouseEnter={(e) => { e.currentTarget.style.background = "var(--brand-primary, #6366f1)14"; }}
               onMouseLeave={(e) => { e.currentTarget.style.background = "var(--brand-primary, #6366f1)08"; }}
             >
-              <div className="h-9 w-9 rounded-xl flex items-center justify-center" style={{ background: "var(--brand-primary, #6366f1)18" }}>
-                <PenSquare className="h-4 w-4 transition-colors" style={{ color: "var(--brand-primary, #6366f1)" }} />
+              <div className="h-8 w-8 rounded-xl flex items-center justify-center" style={{ background: "var(--brand-primary, #6366f1)18" }}>
+                <PenSquare className="h-4 w-4" style={{ color: "var(--brand-primary, #6366f1)" }} />
               </div>
               <div className="text-center">
-                <p className="text-[12px] font-semibold transition-colors" style={{ color: "var(--brand-primary, #6366f1)" }}>Build a Graphic</p>
-                <p className="text-[10px] text-gray-400 mt-0.5">Canvas editor · templates included</p>
+                <p className="text-[11px] font-semibold" style={{ color: "var(--brand-primary, #6366f1)" }}>Graphic Builder</p>
+                <p className="text-[10px] text-gray-400 mt-0.5">Canvas + templates</p>
+              </div>
+            </button>
+          </div>
+
+          {/* AI Generate */}
+          <div className="space-y-1.5">
+            <p className="text-[10px] font-semibold uppercase tracking-[0.08em] text-violet-500">AI Generate</p>
+            <button
+              type="button"
+              onClick={onOpenAiGenerate}
+              className="w-full flex flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed px-3 py-5 transition-all duration-150 border-violet-200 bg-violet-50/50 hover:bg-violet-50"
+            >
+              <div className="h-8 w-8 rounded-xl bg-violet-100 flex items-center justify-center">
+                <Sparkles className="h-4 w-4 text-violet-600" />
+              </div>
+              <div className="text-center">
+                <p className="text-[11px] font-semibold text-violet-600">Generate Image</p>
+                <p className="text-[10px] text-gray-400 mt-0.5">AI · describe & create</p>
               </div>
             </button>
           </div>

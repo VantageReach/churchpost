@@ -104,12 +104,12 @@ export default function AdminOrgDetail() {
         <div className="flex items-center gap-3">
           <div
             className="h-10 w-10 rounded-xl flex items-center justify-center text-white font-bold text-sm flex-shrink-0"
-            style={{ background: settings?.primaryColor || "#6366f1" }}
+            style={{ background: settings?.brandPrimaryColor || "#6366f1" }}
           >
-            {(settings?.orgName || org.name)[0]}
+            {(org.name)[0]}
           </div>
           <div>
-            <h1 className="text-xl font-bold text-gray-900">{settings?.orgName || org.name}</h1>
+            <h1 className="text-xl font-bold text-gray-900">{org.name}</h1>
             <p className="text-[12px] text-gray-400">
               {org.slug}.churchpost.social · Created {new Date(org.createdAt).toLocaleDateString()}
             </p>

@@ -73,7 +73,7 @@ router.get("/orgs", async (req, res, next) => {
         take: limit,
         include: {
           _count: { select: { users: true, posts: true } },
-          settings: { select: { orgName: true, logoIconUrl: true, primaryColor: true } },
+          settings: { select: { logoIconUrl: true, brandPrimaryColor: true } },
         },
       }),
       prisma.organization.count({ where }),

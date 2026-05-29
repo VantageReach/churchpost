@@ -282,12 +282,12 @@ export default function AdminDashboard() {
                       <div className="flex items-center gap-2.5">
                         <div
                           className="h-7 w-7 rounded-lg flex-shrink-0 flex items-center justify-center text-white text-[10px] font-bold"
-                          style={{ background: org.settings?.primaryColor || "#6366f1" }}
+                          style={{ background: org.settings?.brandPrimaryColor || "#6366f1" }}
                         >
                           {org.settings?.orgName?.[0] || org.name[0]}
                         </div>
                         <div>
-                          <p className="font-medium text-gray-900">{org.settings?.orgName || org.name}</p>
+                          <p className="font-medium text-gray-900">{org.name}</p>
                           <p className="text-[11px] text-gray-400">{org.slug}.churchpost.social{org.isDemo ? " · demo" : ""}</p>
                         </div>
                       </div>

@@ -120,6 +120,7 @@ router.get("/connect", async (req, res, next) => {
       scope: SCOPES,
       access_type: "offline",
       prompt: "consent",
+      include_granted_scopes: "true",
       state,
     });
     res.json({ url: `${GOOGLE_AUTH_URL}?${params}` });

@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { getAuth } from "@clerk/express";
 import prisma from "../lib/prisma.js";
+import { checkPlatformAdmin } from "../middleware/platformAdmin.js";
 
 const router = Router();
 
@@ -9,10 +10,16 @@ const router = Router();
 router.get("/", async (req, res, next) => {
   try {
     const { userId } = getAuth(req);
-
     let org = null;
 
-    if (userId) {
+    // Platform admin impersonation: X-Admin-Org header overrides org resolution
+    const adminOrgId = req.headers["x-admin-org"];
+    if (adminOrgId && userId && (await checkPlatformAdmin(userId))) {
+      org = await prisma.organization.findUnique({ where: { id: adminOrgId } });
+    }
+
+    // Normal resolution: user's first org membership
+    if (!org && userId) {
       const membership = await prisma.orgUser.findFirst({
         where: { clerkId: userId },
         include: { organization: true },
@@ -23,26 +30,19 @@ router.get("/", async (req, res, next) => {
 
     // Fallback: first org (covers unauthenticated login page + brand loading)
     if (!org) {
-      org = await prisma.organization.findFirst({
-        orderBy: { createdAt: "asc" },
-      });
+      org = await prisma.organization.findFirst({ orderBy: { createdAt: "asc" } });
     }
 
     if (!org) {
-      return res
-        .status(404)
-        .json({ error: "No organization found. Run: npm run db:seed" });
+      return res.status(404).json({ error: "No organization found." });
     }
 
-    const settings = await prisma.orgSettings.findUnique({
+    // Auto-create OrgSettings with defaults if the org doesn't have them yet
+    const settings = await prisma.orgSettings.upsert({
       where: { organizationId: org.id },
+      update: {},
+      create: { organizationId: org.id },
     });
-
-    if (!settings) {
-      return res
-        .status(404)
-        .json({ error: "OrgSettings not found. Run: npm run db:seed" });
-    }
 
     res.json({
       ...settings,

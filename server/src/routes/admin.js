@@ -90,8 +90,8 @@ router.get("/orgs/:id", async (req, res, next) => {
       where: { id: req.params.id },
       include: {
         settings: true,
-        users: { orderBy: { createdAt: "asc" } },
-        _count: { select: { posts: true, mediaAssets: true } },
+        users: { orderBy: { joinedAt: "asc" } },
+        _count: { select: { posts: true } },
       },
     });
     if (!org) return res.status(404).json({ error: "Org not found" });

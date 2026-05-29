@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@clerk/clerk-react";
-import { Building2, Users, FileText, Sparkles, Search, ChevronLeft, ChevronRight, Shield } from "lucide-react";
+import { Building2, Users, FileText, Sparkles, Search, ChevronLeft, ChevronRight, Shield, Plus, X } from "lucide-react";
 import api from "../../lib/api.js";
 import { usePlatformAdmin } from "../../hooks/usePlatformAdmin.js";
 
@@ -26,6 +26,132 @@ function StatCard({ icon: Icon, label, value, sub }) {
   );
 }
 
+const PLAN_OPTIONS = ["FREE", "STARTER", "PRO"];
+
+function NewOrgModal({ onClose, onCreated }) {
+  const { getToken } = useAuth();
+  const [name, setName] = useState("");
+  const [slug, setSlug] = useState("");
+  const [plan, setPlan] = useState("FREE");
+  const [isDemo, setIsDemo] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+
+  function derivedSlug(val) {
+    return val.toLowerCase().replace(/[^a-z0-9-]/g, "-").replace(/-+/g, "-");
+  }
+
+  function handleNameChange(val) {
+    setName(val);
+    if (!slug || slug === derivedSlug(name)) {
+      setSlug(derivedSlug(val));
+    }
+  }
+
+  async function handleSubmit(e) {
+    e.preventDefault();
+    if (!name.trim() || !slug.trim()) return;
+    setSaving(true);
+    setError("");
+    try {
+      const token = await getToken();
+      const { data } = await api.post("/admin/orgs", { name, slug, plan, isDemo }, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      onCreated(data.org);
+    } catch (err) {
+      setError(err?.response?.data?.error || "Failed to create organization");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
+      <div className="bg-white rounded-2xl shadow-xl w-full max-w-md">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+          <h2 className="text-[15px] font-semibold text-gray-900">New Organization</h2>
+          <button onClick={onClose} className="p-1 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors">
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+        <form onSubmit={handleSubmit} className="p-6 space-y-4">
+          <div>
+            <label className="block text-[11px] font-medium text-gray-500 uppercase tracking-wide mb-1">Organization Name</label>
+            <input
+              value={name}
+              onChange={(e) => handleNameChange(e.target.value)}
+              placeholder="First Baptist Church"
+              required
+              className="w-full px-3 py-2 text-[13px] border border-gray-200 rounded-lg outline-none focus:ring-2 focus:ring-violet-500/20 focus:border-violet-400"
+            />
+          </div>
+          <div>
+            <label className="block text-[11px] font-medium text-gray-500 uppercase tracking-wide mb-1">Slug</label>
+            <div className="flex items-center gap-0 border border-gray-200 rounded-lg overflow-hidden focus-within:ring-2 focus-within:ring-violet-500/20 focus-within:border-violet-400">
+              <span className="px-3 py-2 text-[12px] text-gray-400 bg-gray-50 border-r border-gray-200 flex-shrink-0 font-mono">slug.</span>
+              <input
+                value={slug}
+                onChange={(e) => setSlug(derivedSlug(e.target.value))}
+                placeholder="first-baptist"
+                required
+                className="flex-1 px-3 py-2 text-[13px] outline-none font-mono"
+              />
+            </div>
+          </div>
+          <div>
+            <label className="block text-[11px] font-medium text-gray-500 uppercase tracking-wide mb-1.5">Plan</label>
+            <div className="flex gap-2">
+              {PLAN_OPTIONS.map((p) => (
+                <button
+                  type="button"
+                  key={p}
+                  onClick={() => setPlan(p)}
+                  className={`flex-1 py-2 rounded-lg text-[12px] font-semibold border transition-colors ${
+                    plan === p ? "border-violet-500 bg-violet-50 text-violet-700" : "border-gray-200 text-gray-500 hover:border-gray-300"
+                  }`}
+                >
+                  {p}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div className="flex items-center justify-between py-1">
+            <div>
+              <p className="text-[13px] font-medium text-gray-700">Demo org</p>
+              <p className="text-[11px] text-gray-400">Mark as demo/test organization</p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setIsDemo(!isDemo)}
+              className={`relative inline-flex h-5 w-9 flex-shrink-0 rounded-full border-2 border-transparent transition-colors duration-200 focus:outline-none ${isDemo ? "bg-violet-600" : "bg-gray-200"}`}
+            >
+              <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform duration-200 ${isDemo ? "translate-x-4" : "translate-x-0"}`} />
+            </button>
+          </div>
+          {error && <p className="text-[12px] text-red-600">{error}</p>}
+          <div className="flex gap-2 pt-1">
+            <button
+              type="button"
+              onClick={onClose}
+              className="flex-1 py-2.5 rounded-xl text-[13px] font-medium text-gray-600 border border-gray-200 hover:bg-gray-50 transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={saving || !name.trim() || !slug.trim()}
+              className="flex-1 py-2.5 rounded-xl text-[13px] font-semibold text-white bg-violet-600 hover:bg-violet-700 disabled:opacity-40 transition-colors"
+            >
+              {saving ? "Creating…" : "Create organization"}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
 export default function AdminDashboard() {
   const { getToken } = useAuth();
   const { isPlatformAdmin, loading: adminLoading } = usePlatformAdmin();
@@ -39,6 +165,7 @@ export default function AdminDashboard() {
   const [search, setSearch] = useState("");
   const [query, setQuery] = useState("");
   const [loading, setLoading] = useState(true);
+  const [showNewOrgModal, setShowNewOrgModal] = useState(false);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -75,17 +202,32 @@ export default function AdminDashboard() {
     setQuery(search);
   }
 
+  function handleOrgCreated(org) {
+    setShowNewOrgModal(false);
+    navigate(`/admin/orgs/${org.id}`);
+  }
+
   return (
     <div className="p-4 lg:p-8 max-w-6xl mx-auto space-y-8">
+      {showNewOrgModal && (
+        <NewOrgModal onClose={() => setShowNewOrgModal(false)} onCreated={handleOrgCreated} />
+      )}
+
       {/* Header */}
       <div className="flex items-center gap-3">
         <div className="h-9 w-9 rounded-xl bg-violet-600 flex items-center justify-center">
           <Shield className="h-5 w-5 text-white" />
         </div>
-        <div>
+        <div className="flex-1">
           <h1 className="text-xl font-bold text-gray-900">Platform Admin</h1>
           <p className="text-[12px] text-gray-400">Manage all ChurchPost organizations</p>
         </div>
+        <button
+          onClick={() => setShowNewOrgModal(true)}
+          className="flex items-center gap-1.5 px-4 py-2 text-[13px] font-semibold text-white bg-violet-600 rounded-xl hover:bg-violet-700 transition-colors"
+        >
+          <Plus className="h-4 w-4" /> New Organization
+        </button>
       </div>
 
       {/* Stats */}

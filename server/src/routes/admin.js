@@ -14,6 +14,31 @@ router.get("/me", async (req, res) => {
 // All routes below require platform admin
 router.use(requirePlatformAdmin);
 
+// POST /api/admin/orgs — create a new org (pre-provision for a church)
+router.post("/orgs", async (req, res, next) => {
+  try {
+    const { name, slug, timezone = "America/Chicago", plan = "FREE", isDemo = false } = req.body;
+    if (!name?.trim() || !slug?.trim()) {
+      return res.status(400).json({ error: "name and slug are required" });
+    }
+    const cleanSlug = slug.trim().toLowerCase().replace(/[^a-z0-9-]/g, "-");
+    const existing = await prisma.organization.findUnique({ where: { slug: cleanSlug } });
+    if (existing) return res.status(409).json({ error: "That slug is already taken" });
+
+    const org = await prisma.organization.create({
+      data: {
+        name: name.trim(),
+        slug: cleanSlug,
+        plan,
+        isDemo,
+        settings: { create: { timezone } },
+      },
+      include: { settings: true, _count: { select: { users: true, posts: true } } },
+    });
+    res.status(201).json({ org });
+  } catch (err) { next(err); }
+});
+
 // GET /api/admin/stats — platform-wide numbers
 router.get("/stats", async (req, res, next) => {
   try {
@@ -101,14 +126,22 @@ router.get("/orgs/:id", async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
-// PATCH /api/admin/orgs/:id — update plan or isDemo flag
+// PATCH /api/admin/orgs/:id — update plan, isDemo, name, or slug
 router.patch("/orgs/:id", async (req, res, next) => {
   try {
-    const { plan, isDemo, name } = req.body;
+    const { plan, isDemo, name, slug } = req.body;
     const data = {};
     if (plan !== undefined) data.plan = plan;
     if (isDemo !== undefined) data.isDemo = isDemo;
-    if (name !== undefined) data.name = name;
+    if (name !== undefined) data.name = name.trim();
+    if (slug !== undefined) {
+      const cleanSlug = slug.trim().toLowerCase().replace(/[^a-z0-9-]/g, "-");
+      const existing = await prisma.organization.findFirst({
+        where: { slug: cleanSlug, NOT: { id: req.params.id } },
+      });
+      if (existing) return res.status(409).json({ error: "That slug is already taken" });
+      data.slug = cleanSlug;
+    }
 
     const org = await prisma.organization.update({ where: { id: req.params.id }, data });
     res.json({ org });

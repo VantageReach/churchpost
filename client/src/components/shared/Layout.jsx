@@ -2,7 +2,9 @@ import { useState } from "react";
 import { Outlet } from "react-router-dom";
 import { Menu, Sparkles, FlaskConical } from "lucide-react";
 import Sidebar from "./Sidebar.jsx";
+import AdminImpersonateBanner from "./AdminImpersonateBanner.jsx";
 import { useOrgSettings } from "../../hooks/useOrgSettings.js";
+import { getImpersonatingOrgId } from "../../lib/api.js";
 
 export default function Layout() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -44,6 +46,8 @@ export default function Layout() {
             <span className="text-[15px] font-semibold text-gray-900 font-display">ChurchPost</span>
           </div>
         </div>
+
+        {getImpersonatingOrgId() && <AdminImpersonateBanner orgName={settings?.orgName} />}
 
         {settings?.isDemo && (
           <div className="flex items-center justify-center gap-2 px-4 py-2 bg-amber-50 border-b border-amber-200 flex-shrink-0">

@@ -1,5 +1,6 @@
 import { requireAuth, getAuth, clerkClient } from "@clerk/express";
 import prisma from "../lib/prisma.js";
+import { checkPlatformAdmin } from "./platformAdmin.js";
 
 // Enforce a valid Clerk session
 export const protect = requireAuth();
@@ -12,7 +13,15 @@ export async function resolveOrgAndUser(req, res, next) {
   if (!userId) return next();
 
   try {
-    const org = await resolveOrg(req, userId);
+    // Platform admins can pass X-Admin-Org header to impersonate any org
+    let org;
+    const adminOrgId = req.headers["x-admin-org"];
+    if (adminOrgId && (await checkPlatformAdmin(userId))) {
+      org = await prisma.organization.findUnique({ where: { id: adminOrgId } });
+      req.isImpersonating = true;
+    } else {
+      org = await resolveOrg(req, userId);
+    }
 
     if (!org) {
       return res.status(404).json({ error: "Organization not found." });
@@ -112,7 +121,7 @@ export async function resolveOrgAndUser(req, res, next) {
     const superAdmin = await prisma.superAdmin.findUnique({
       where: { clerkId: userId },
     });
-    req.isSuperAdmin = !!superAdmin;
+    req.isSuperAdmin = !!superAdmin || req.isImpersonating;
 
     next();
   } catch (err) {

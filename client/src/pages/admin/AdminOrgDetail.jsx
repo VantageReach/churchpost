@@ -1,8 +1,9 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useAuth } from "@clerk/clerk-react";
-import { ArrowLeft, Trash2, Building2, Users, FileText, Calendar, AlertTriangle } from "lucide-react";
-import api from "../../lib/api.js";
+import { ArrowLeft, Trash2, Users, FileText, Calendar, AlertTriangle, Eye } from "lucide-react";
+import api, { startImpersonating } from "../../lib/api.js";
+import { useQueryClient } from "@tanstack/react-query";
 
 const PLAN_OPTIONS = ["FREE", "STARTER", "PRO"];
 const PLAN_COLORS = {
@@ -17,12 +18,15 @@ export default function AdminOrgDetail() {
   const navigate = useNavigate();
   const { getToken } = useAuth();
 
+  const queryClient = useQueryClient();
   const [org, setOrg] = useState(null);
   const [postCounts, setPostCounts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [plan, setPlan] = useState("FREE");
   const [isDemo, setIsDemo] = useState(false);
+  const [editName, setEditName] = useState("");
+  const [editSlug, setEditSlug] = useState("");
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
@@ -37,6 +41,8 @@ export default function AdminOrgDetail() {
         setPostCounts(data.postCounts);
         setPlan(data.org.plan);
         setIsDemo(data.org.isDemo);
+        setEditName(data.org.name);
+        setEditSlug(data.org.slug);
       } catch (err) {
         console.error(err);
       } finally {
@@ -49,15 +55,21 @@ export default function AdminOrgDetail() {
     setSaving(true);
     try {
       const token = await getToken();
-      const { data } = await api.patch(`/admin/orgs/${id}`, { plan, isDemo }, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      const { data } = await api.patch(`/admin/orgs/${id}`, {
+        plan, isDemo, name: editName, slug: editSlug,
+      }, { headers: { Authorization: `Bearer ${token}` } });
       setOrg((prev) => ({ ...prev, ...data.org }));
     } catch (err) {
-      console.error(err);
+      alert(err?.response?.data?.error || "Save failed");
     } finally {
       setSaving(false);
     }
+  }
+
+  function handleImpersonate() {
+    startImpersonating(org.id);
+    queryClient.clear();
+    window.location.href = "/";
   }
 
   async function handleDelete() {
@@ -126,7 +138,34 @@ export default function AdminOrgDetail() {
       <div className="grid lg:grid-cols-2 gap-6">
         {/* Plan management */}
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 space-y-4">
-          <h2 className="text-[14px] font-semibold text-gray-900">Plan & Settings</h2>
+          <div className="flex items-center justify-between">
+            <h2 className="text-[14px] font-semibold text-gray-900">Plan & Settings</h2>
+            <button
+              onClick={handleImpersonate}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-[11px] font-semibold text-violet-600 border border-violet-200 rounded-lg hover:bg-violet-50 transition-colors"
+            >
+              <Eye className="h-3.5 w-3.5" /> View as org
+            </button>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-[11px] font-medium text-gray-500 uppercase tracking-wide mb-1">Name</label>
+              <input
+                value={editName}
+                onChange={(e) => setEditName(e.target.value)}
+                className="w-full px-3 py-2 text-[13px] border border-gray-200 rounded-lg outline-none focus:ring-2 focus:ring-violet-500/20 focus:border-violet-400"
+              />
+            </div>
+            <div>
+              <label className="block text-[11px] font-medium text-gray-500 uppercase tracking-wide mb-1">Slug</label>
+              <input
+                value={editSlug}
+                onChange={(e) => setEditSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, "-"))}
+                className="w-full px-3 py-2 text-[13px] border border-gray-200 rounded-lg outline-none focus:ring-2 focus:ring-violet-500/20 focus:border-violet-400 font-mono"
+              />
+            </div>
+          </div>
 
           <div>
             <label className="block text-[11px] font-medium text-gray-500 uppercase tracking-wide mb-1.5">Plan</label>
@@ -175,7 +214,7 @@ export default function AdminOrgDetail() {
 
           <button
             onClick={handleSave}
-            disabled={saving || (plan === org.plan && isDemo === org.isDemo)}
+            disabled={saving || (plan === org.plan && isDemo === org.isDemo && editName === org.name && editSlug === org.slug)}
             className="w-full py-2.5 rounded-xl text-[13px] font-semibold text-white transition-opacity disabled:opacity-40"
             style={{ background: "var(--brand-primary)" }}
           >

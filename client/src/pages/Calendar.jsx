@@ -122,6 +122,7 @@ export default function Calendar() {
       id: post.id,
       title: fullTitle,
       start: dateField,
+      end: dateField,
       allDay: post.status === "DRAFT" && !post.scheduledAt,
       backgroundColor: platformMeta ? platformMeta.color + "22" : style.bg,
       borderColor: platformMeta ? platformMeta.color : style.border,

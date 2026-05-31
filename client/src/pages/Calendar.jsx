@@ -118,11 +118,14 @@ export default function Calendar() {
     const platformMeta = firstPlatform ? getPlatformMeta(firstPlatform) : null;
 
     const fullTitle = post.title || Object.values(post.captions ?? {})[0] || "Untitled";
+    const startDate = new Date(dateField);
+    const endDate = new Date(startDate);
+    endDate.setHours(23, 59, 59, 999);
     return {
       id: post.id,
       title: fullTitle,
       start: dateField,
-      end: dateField,
+      end: endDate.toISOString(),
       allDay: post.status === "DRAFT" && !post.scheduledAt,
       backgroundColor: platformMeta ? platformMeta.color + "22" : style.bg,
       borderColor: platformMeta ? platformMeta.color : style.border,

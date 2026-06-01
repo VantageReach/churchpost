@@ -6,6 +6,7 @@ import { useMe } from "./hooks/useMe.js";
 import Layout from "./components/shared/Layout.jsx";
 import ProtectedRoute from "./components/shared/ProtectedRoute.jsx";
 import Login from "./pages/Login.jsx";
+import SignUpPage from "./pages/SignUp.jsx";
 import Onboarding from "./pages/Onboarding.jsx";
 import Dashboard from "./pages/Dashboard.jsx";
 import Compose from "./pages/Compose.jsx";
@@ -51,6 +52,10 @@ function AppShell() {
       <Route
         path="/login"
         element={isSignedIn ? <Navigate to={needsOnboarding ? "/onboarding" : "/"} replace /> : <Login />}
+      />
+      <Route
+        path="/sign-up"
+        element={isSignedIn ? <Navigate to={needsOnboarding ? "/onboarding" : "/"} replace /> : <SignUpPage />}
       />
       <Route
         path="/onboarding"

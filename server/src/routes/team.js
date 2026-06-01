@@ -80,7 +80,7 @@ router.post("/invite", requireOrgRole("ORG_ADMIN"), async (req, res, next) => {
       const clerk = getClerk();
       await clerk.invitations.createInvitation({
         emailAddress: normalizedEmail,
-        redirectUrl: process.env.CLIENT_URL || "http://localhost:5173",
+        redirectUrl: `${process.env.CLIENT_URL || "http://localhost:5173"}/sign-up`,
         publicMetadata: { orgSlug: req.org.slug, role },
         ignoreExisting: true,
       });

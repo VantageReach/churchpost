@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { getAuth } from "@clerk/express";
+import { getAuth, clerkClient } from "@clerk/express";
 import prisma from "../lib/prisma.js";
 
 const router = Router();
@@ -34,12 +34,21 @@ router.get("/me", async (req, res, next) => {
     });
 
     if (!orgUser) {
-      // Check for a pending invite matching this user's email and claim it
-      const userEmail = (
+      // Check for a pending invite matching this user's email and claim it.
+      // sessionClaims.email is only present if the Clerk JWT template includes it,
+      // so fall back to the Clerk API to reliably get the email.
+      let userEmail = (
         sessionClaims?.email ||
         sessionClaims?.primaryEmail ||
         ""
       ).toLowerCase();
+
+      if (!userEmail) {
+        try {
+          const clerkUser = await clerkClient.users.getUser(userId);
+          userEmail = clerkUser.emailAddresses?.[0]?.emailAddress?.toLowerCase() || "";
+        } catch {}
+      }
 
       if (userEmail) {
         const pending = await prisma.orgUser.findFirst({

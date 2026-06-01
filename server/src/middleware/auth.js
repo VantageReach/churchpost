@@ -144,6 +144,19 @@ async function resolveOrg(req, userId) {
       if (slug === "admin") return null; // Super Admin portal handled separately
       // app.churchpost.social is the shared multi-tenant host — resolve by user membership
       if (slug === "app") {
+        // Prefer explicit org preference sent by client (set on first login / invite claim)
+        const preferredOrgId = req.headers["x-org-id"];
+        if (preferredOrgId) {
+          const preferred = await prisma.orgUser.findFirst({
+            where: {
+              clerkId: userId,
+              organizationId: preferredOrgId,
+              NOT: { clerkId: { startsWith: "pending:" } },
+            },
+            include: { organization: true },
+          });
+          if (preferred) return preferred.organization;
+        }
         const existing = await prisma.orgUser.findFirst({
           where: { clerkId: userId, NOT: { clerkId: { startsWith: "pending:" } } },
           include: { organization: true },

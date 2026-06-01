@@ -22,9 +22,9 @@ function generateSlug(name) {
 // GET /api/orgs/me — check current user's org membership (no org context required)
 router.get("/me", async (req, res, next) => {
   try {
-    const { userId } = getAuth(req);
+    const { userId, sessionClaims } = getAuth(req);
 
-    const orgUser = await prisma.orgUser.findFirst({
+    let orgUser = await prisma.orgUser.findFirst({
       where: {
         clerkId: userId,
         NOT: { clerkId: { startsWith: "pending:" } },
@@ -32,6 +32,36 @@ router.get("/me", async (req, res, next) => {
       include: { organization: true },
       orderBy: { joinedAt: "asc" },
     });
+
+    if (!orgUser) {
+      // Check for a pending invite matching this user's email and claim it
+      const userEmail = (
+        sessionClaims?.email ||
+        sessionClaims?.primaryEmail ||
+        ""
+      ).toLowerCase();
+
+      if (userEmail) {
+        const pending = await prisma.orgUser.findFirst({
+          where: { clerkId: `pending:${userEmail}` },
+          include: { organization: true },
+          orderBy: { joinedAt: "asc" },
+        });
+        if (pending) {
+          orgUser = await prisma.orgUser.update({
+            where: { id: pending.id },
+            data: {
+              clerkId: userId,
+              name:
+                [sessionClaims?.firstName, sessionClaims?.lastName]
+                  .filter(Boolean)
+                  .join(" ") || pending.name,
+            },
+            include: { organization: true },
+          });
+        }
+      }
+    }
 
     if (!orgUser) return res.json({ hasOrg: false });
 

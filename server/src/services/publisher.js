@@ -23,7 +23,7 @@ function fbPermalink(externalId, pageId) {
   return `https://www.facebook.com/photo/?fbid=${externalId}`;
 }
 
-async function igWaitForContainer(containerId, token, timeoutMs = 30_000) {
+async function igWaitForContainer(containerId, token, timeoutMs = 300_000) {
   const deadline = Date.now() + timeoutMs;
   while (Date.now() < deadline) {
     const res = await axios.get(`${FB}/${containerId}`, {
@@ -527,7 +527,13 @@ async function publishTikTokFormat(post, account, format) {
   if (videos.length === 0) throw new Error("TikTok requires a video file.");
   const videoUrl = getBestUrl(videos[0], "tiktok", "standard");
 
-  const res = await axios.post(
+  // Download video to get size, then use FILE_UPLOAD (PULL_FROM_URL requires domain verification)
+  const videoRes = await axios.get(videoUrl, { responseType: "arraybuffer" });
+  const videoBuffer = Buffer.from(videoRes.data);
+  const videoSize = videoBuffer.length;
+  const chunkSize = Math.min(videoSize, 64 * 1024 * 1024); // 64 MB max chunk
+
+  const initRes = await axios.post(
     "https://open.tiktokapis.com/v2/post/publish/video/init/",
     {
       post_info: {
@@ -537,14 +543,39 @@ async function publishTikTokFormat(post, account, format) {
         disable_comment: false,
         disable_stitch: ttMeta.disableStitch ?? false,
       },
-      source_info: { source: "PULL_FROM_URL", video_url: videoUrl },
+      source_info: {
+        source: "FILE_UPLOAD",
+        video_size: videoSize,
+        chunk_size: chunkSize,
+        total_chunk_count: Math.ceil(videoSize / chunkSize),
+      },
     },
     { headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json; charset=UTF-8" } }
   );
-  if (res.data?.error?.code && res.data.error.code !== "ok") {
-    throw new Error(res.data.error.message || "TikTok publish failed");
+  if (initRes.data?.error?.code && initRes.data.error.code !== "ok") {
+    throw new Error(initRes.data.error.message || "TikTok publish init failed");
   }
-  return { externalId: res.data.data.publish_id };
+
+  const { upload_url, publish_id } = initRes.data.data;
+
+  // Upload video in chunks
+  let offset = 0;
+  let chunkIndex = 0;
+  while (offset < videoSize) {
+    const chunk = videoBuffer.slice(offset, offset + chunkSize);
+    const end = offset + chunk.length - 1;
+    await axios.put(upload_url, chunk, {
+      headers: {
+        "Content-Type": "video/mp4",
+        "Content-Range": `bytes ${offset}-${end}/${videoSize}`,
+        "Content-Length": chunk.length,
+      },
+    });
+    offset += chunk.length;
+    chunkIndex++;
+  }
+
+  return { externalId: publish_id };
 }
 
 // ── Main publish function ─────────────────────────────────────────────────────

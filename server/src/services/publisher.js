@@ -527,11 +527,17 @@ async function publishTikTokFormat(post, account, format) {
   if (videos.length === 0) throw new Error("TikTok requires a video file.");
   const videoUrl = getBestUrl(videos[0], "tiktok", "standard");
 
-  // Download video to get size, then use FILE_UPLOAD (PULL_FROM_URL requires domain verification)
+  // Download video then FILE_UPLOAD directly (PULL_FROM_URL requires TikTok domain verification)
   const videoRes = await axios.get(videoUrl, { responseType: "arraybuffer" });
   const videoBuffer = Buffer.from(videoRes.data);
   const videoSize = videoBuffer.length;
-  const chunkSize = Math.min(videoSize, 64 * 1024 * 1024); // 64 MB max chunk
+  if (!videoSize) throw new Error("TikTok: video download returned empty buffer.");
+
+  // TikTok requires chunk_size >= 5MB except for the final chunk.
+  // Use 64MB chunks for large videos; single chunk for anything that fits.
+  const MAX_CHUNK = 64 * 1024 * 1024;
+  const totalChunks = Math.max(1, Math.ceil(videoSize / MAX_CHUNK));
+  const chunkSize = totalChunks === 1 ? videoSize : MAX_CHUNK;
 
   const initRes = await axios.post(
     "https://open.tiktokapis.com/v2/post/publish/video/init/",
@@ -547,7 +553,7 @@ async function publishTikTokFormat(post, account, format) {
         source: "FILE_UPLOAD",
         video_size: videoSize,
         chunk_size: chunkSize,
-        total_chunk_count: Math.ceil(videoSize / chunkSize),
+        total_chunk_count: totalChunks,
       },
     },
     { headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json; charset=UTF-8" } }
@@ -558,9 +564,8 @@ async function publishTikTokFormat(post, account, format) {
 
   const { upload_url, publish_id } = initRes.data.data;
 
-  // Upload video in chunks
+  // Upload in chunks
   let offset = 0;
-  let chunkIndex = 0;
   while (offset < videoSize) {
     const chunk = videoBuffer.slice(offset, offset + chunkSize);
     const end = offset + chunk.length - 1;
@@ -572,7 +577,6 @@ async function publishTikTokFormat(post, account, format) {
       },
     });
     offset += chunk.length;
-    chunkIndex++;
   }
 
   return { externalId: publish_id };

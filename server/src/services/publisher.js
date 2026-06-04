@@ -533,11 +533,13 @@ async function publishTikTokFormat(post, account, format) {
   const videoSize = videoBuffer.length;
   if (!videoSize) throw new Error("TikTok: video download returned empty buffer.");
 
-  // TikTok Direct Post API only supports single-chunk upload (total_chunk_count must be 1).
-  // Max video size is 128MB for a single PUT.
-  const MAX_TIKTOK_SIZE = 128 * 1024 * 1024;
+  // TikTok Direct Post API: single-chunk only, max chunk_size is 64MB.
+  const MAX_TIKTOK_SIZE = 64 * 1024 * 1024;
   if (videoSize > MAX_TIKTOK_SIZE) {
-    throw new Error(`TikTok video is too large (${Math.round(videoSize / 1024 / 1024)}MB). Maximum is 128MB.`);
+    throw new Error(
+      `TikTok video is too large (${Math.round(videoSize / 1024 / 1024)}MB). ` +
+      `TikTok's API requires videos under 64MB. Please compress the video and re-upload.`
+    );
   }
   const chunkSize = videoSize;
   const totalChunks = 1;

@@ -540,6 +540,7 @@ async function publishTikTokFormat(post, account, format) {
   if (videos.length === 0) throw new Error("TikTok requires a video file.");
   const rawVideoUrl = getBestUrl(videos[0], "tiktok", "standard");
   const videoUrl = toCustomDomain(rawVideoUrl);
+  console.log("[TikTok] rawUrl:", rawVideoUrl, "→ finalUrl:", videoUrl, "R2_CUSTOM_DOMAIN:", process.env.R2_CUSTOM_DOMAIN);
 
   const initRes = await axios.post(
     "https://open.tiktokapis.com/v2/post/publish/video/init/",

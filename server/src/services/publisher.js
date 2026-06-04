@@ -533,13 +533,14 @@ async function publishTikTokFormat(post, account, format) {
   const videoSize = videoBuffer.length;
   if (!videoSize) throw new Error("TikTok: video download returned empty buffer.");
 
-  // TikTok: chunk_size must be 5MB–64MB (last chunk can be smaller).
-  // For single-chunk uploads, declare chunk_size as min(videoSize, 64MB) but
-  // always at least 5MB so TikTok accepts it; the upload PUT sends actual bytes.
-  const MIN_CHUNK = 5 * 1024 * 1024;
-  const MAX_CHUNK = 64 * 1024 * 1024;
-  const chunkSize = Math.min(MAX_CHUNK, Math.max(MIN_CHUNK, videoSize));
-  const totalChunks = Math.ceil(videoSize / chunkSize);
+  // TikTok Direct Post API only supports single-chunk upload (total_chunk_count must be 1).
+  // Max video size is 128MB for a single PUT.
+  const MAX_TIKTOK_SIZE = 128 * 1024 * 1024;
+  if (videoSize > MAX_TIKTOK_SIZE) {
+    throw new Error(`TikTok video is too large (${Math.round(videoSize / 1024 / 1024)}MB). Maximum is 128MB.`);
+  }
+  const chunkSize = videoSize;
+  const totalChunks = 1;
 
   const initPayload = {
     post_info: {

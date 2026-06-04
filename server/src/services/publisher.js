@@ -558,8 +558,10 @@ async function publishTikTokFormat(post, account, format) {
     },
     { headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json; charset=UTF-8" } }
   );
+  console.log("[TikTok] init payload:", JSON.stringify({ videoSize, chunkSize, totalChunks }));
+  console.log("[TikTok] init response:", JSON.stringify(initRes.data));
   if (initRes.data?.error?.code && initRes.data.error.code !== "ok") {
-    throw new Error(initRes.data.error.message || "TikTok publish init failed");
+    throw new Error(`TikTok init failed — ${JSON.stringify(initRes.data.error)}`);
   }
 
   const { upload_url, publish_id } = initRes.data.data;

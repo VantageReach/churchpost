@@ -55,6 +55,19 @@ function mediaUrl(assetUrl) {
   return assetUrl.startsWith("http") ? assetUrl : `${base}${assetUrl}`;
 }
 
+// Rewrite an R2 URL to use the verified custom domain (required for TikTok PULL_FROM_URL)
+function toCustomDomain(url) {
+  const custom = process.env.R2_CUSTOM_DOMAIN;
+  if (!custom) return url;
+  try {
+    const parsed = new URL(url);
+    const base = new URL(custom);
+    return `${base.protocol}//${base.host}${parsed.pathname}`;
+  } catch {
+    return url;
+  }
+}
+
 // Pick the best URL: variant for this platform/format → original → url
 function getBestUrl(asset, platform, format) {
   const variant = asset.variants?.find(
@@ -525,77 +538,27 @@ async function publishTikTokFormat(post, account, format) {
   // ── Standard Video ──
   const videos = (post.mediaAssets ?? []).filter((a) => a.type === "VIDEO");
   if (videos.length === 0) throw new Error("TikTok requires a video file.");
-  const videoUrl = getBestUrl(videos[0], "tiktok", "standard");
+  const rawVideoUrl = getBestUrl(videos[0], "tiktok", "standard");
+  const videoUrl = toCustomDomain(rawVideoUrl);
 
-  // Download video then FILE_UPLOAD directly (PULL_FROM_URL requires TikTok domain verification)
-  const videoRes = await axios.get(videoUrl, { responseType: "arraybuffer" });
-  const videoBuffer = Buffer.from(videoRes.data);
-  const videoSize = videoBuffer.length;
-  if (!videoSize) throw new Error("TikTok: video download returned empty buffer.");
-
-  // TikTok Direct Post API: single-chunk only, max chunk_size is 64MB.
-  const MAX_TIKTOK_SIZE = 64 * 1024 * 1024;
-  if (videoSize > MAX_TIKTOK_SIZE) {
-    throw new Error(
-      `TikTok video is too large (${Math.round(videoSize / 1024 / 1024)}MB). ` +
-      `TikTok's API requires videos under 64MB. Please compress the video and re-upload.`
-    );
-  }
-  const chunkSize = videoSize;
-  const totalChunks = 1;
-
-  const initPayload = {
-    post_info: {
-      title,
-      privacy_level: ttMeta.privacy ?? "PUBLIC_TO_EVERYONE",
-      disable_duet: ttMeta.disableDuet ?? false,
-      disable_comment: false,
-      disable_stitch: ttMeta.disableStitch ?? false,
-    },
-    source_info: {
-      source: "FILE_UPLOAD",
-      video_size: videoSize,
-      chunk_size: chunkSize,
-      total_chunk_count: totalChunks,
-    },
-  };
-  console.log("[TikTok] init payload:", JSON.stringify({ videoSize, chunkSize, totalChunks, types: { vs: typeof videoSize, cs: typeof chunkSize, tc: typeof totalChunks } }));
-
-  let initRes;
-  try {
-    initRes = await axios.post(
-      "https://open.tiktokapis.com/v2/post/publish/video/init/",
-      initPayload,
-      { headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json; charset=UTF-8" } }
-    );
-  } catch (axiosErr) {
-    const errData = axiosErr.response?.data;
-    console.log("[TikTok] init HTTP error:", axiosErr.response?.status, JSON.stringify(errData));
-    throw new Error(`TikTok init HTTP ${axiosErr.response?.status}: ${JSON.stringify(errData)}`);
-  }
-  console.log("[TikTok] init response:", JSON.stringify(initRes.data));
-  if (initRes.data?.error?.code && initRes.data.error.code !== "ok") {
-    throw new Error(`TikTok init failed — ${JSON.stringify(initRes.data.error)}`);
-  }
-
-  const { upload_url, publish_id } = initRes.data.data;
-
-  // Upload in chunks
-  let offset = 0;
-  while (offset < videoSize) {
-    const chunk = videoBuffer.slice(offset, offset + chunkSize);
-    const end = offset + chunk.length - 1;
-    await axios.put(upload_url, chunk, {
-      headers: {
-        "Content-Type": "video/mp4",
-        "Content-Range": `bytes ${offset}-${end}/${videoSize}`,
-        "Content-Length": chunk.length,
+  const initRes = await axios.post(
+    "https://open.tiktokapis.com/v2/post/publish/video/init/",
+    {
+      post_info: {
+        title,
+        privacy_level: ttMeta.privacy ?? "PUBLIC_TO_EVERYONE",
+        disable_duet: ttMeta.disableDuet ?? false,
+        disable_comment: false,
+        disable_stitch: ttMeta.disableStitch ?? false,
       },
-    });
-    offset += chunk.length;
+      source_info: { source: "PULL_FROM_URL", video_url: videoUrl },
+    },
+    { headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json; charset=UTF-8" } }
+  );
+  if (initRes.data?.error?.code && initRes.data.error.code !== "ok") {
+    throw new Error(initRes.data.error.message || "TikTok publish failed");
   }
-
-  return { externalId: publish_id };
+  return { externalId: initRes.data.data.publish_id };
 }
 
 // ── Main publish function ─────────────────────────────────────────────────────

@@ -539,8 +539,44 @@ async function publishTikTokFormat(post, account, format) {
   const videos = (post.mediaAssets ?? []).filter((a) => a.type === "VIDEO");
   if (videos.length === 0) throw new Error("TikTok requires a video file.");
   const rawVideoUrl = getBestUrl(videos[0], "tiktok", "standard");
-  const videoUrl = toCustomDomain(rawVideoUrl);
-  console.log("[TikTok] rawUrl:", rawVideoUrl, "→ finalUrl:", videoUrl, "R2_CUSTOM_DOMAIN:", process.env.R2_CUSTOM_DOMAIN);
+
+  // Use PULL_FROM_URL once TikTok app review is approved (domain already verified).
+  // Until then, fall back to FILE_UPLOAD (limited to 64MB single-chunk).
+  const useDirectUrl = !!process.env.TIKTOK_USE_PULL_FROM_URL;
+
+  if (useDirectUrl) {
+    const videoUrl = toCustomDomain(rawVideoUrl);
+    const initRes = await axios.post(
+      "https://open.tiktokapis.com/v2/post/publish/video/init/",
+      {
+        post_info: {
+          title,
+          privacy_level: ttMeta.privacy ?? "PUBLIC_TO_EVERYONE",
+          disable_duet: ttMeta.disableDuet ?? false,
+          disable_comment: false,
+          disable_stitch: ttMeta.disableStitch ?? false,
+        },
+        source_info: { source: "PULL_FROM_URL", video_url: videoUrl },
+      },
+      { headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json; charset=UTF-8" } }
+    );
+    if (initRes.data?.error?.code && initRes.data.error.code !== "ok") {
+      throw new Error(initRes.data.error.message || "TikTok publish failed");
+    }
+    return { externalId: initRes.data.data.publish_id };
+  }
+
+  // FILE_UPLOAD fallback — download and upload directly (max 64MB)
+  const MAX_TIKTOK_SIZE = 64 * 1024 * 1024;
+  const videoRes = await axios.get(rawVideoUrl, { responseType: "arraybuffer" });
+  const videoBuffer = Buffer.from(videoRes.data);
+  const videoSize = videoBuffer.length;
+  if (!videoSize) throw new Error("TikTok: video download returned empty buffer.");
+  if (videoSize > MAX_TIKTOK_SIZE) {
+    throw new Error(
+      `TikTok video is ${Math.round(videoSize / 1024 / 1024)}MB — please compress to under 64MB and re-upload.`
+    );
+  }
 
   const initRes = await axios.post(
     "https://open.tiktokapis.com/v2/post/publish/video/init/",
@@ -552,14 +588,22 @@ async function publishTikTokFormat(post, account, format) {
         disable_comment: false,
         disable_stitch: ttMeta.disableStitch ?? false,
       },
-      source_info: { source: "PULL_FROM_URL", video_url: videoUrl },
+      source_info: { source: "FILE_UPLOAD", video_size: videoSize, chunk_size: videoSize, total_chunk_count: 1 },
     },
     { headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json; charset=UTF-8" } }
   );
   if (initRes.data?.error?.code && initRes.data.error.code !== "ok") {
-    throw new Error(initRes.data.error.message || "TikTok publish failed");
+    throw new Error(initRes.data.error.message || "TikTok publish init failed");
   }
-  return { externalId: initRes.data.data.publish_id };
+  const { upload_url, publish_id } = initRes.data.data;
+  await axios.put(upload_url, videoBuffer, {
+    headers: {
+      "Content-Type": "video/mp4",
+      "Content-Range": `bytes 0-${videoSize - 1}/${videoSize}`,
+      "Content-Length": videoSize,
+    },
+  });
+  return { externalId: publish_id };
 }
 
 // ── Main publish function ─────────────────────────────────────────────────────

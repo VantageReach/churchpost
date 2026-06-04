@@ -539,26 +539,35 @@ async function publishTikTokFormat(post, account, format) {
   const totalChunks = Math.max(1, Math.ceil(videoSize / MAX_CHUNK));
   const chunkSize = totalChunks === 1 ? videoSize : MAX_CHUNK;
 
-  const initRes = await axios.post(
-    "https://open.tiktokapis.com/v2/post/publish/video/init/",
-    {
-      post_info: {
-        title,
-        privacy_level: ttMeta.privacy ?? "PUBLIC_TO_EVERYONE",
-        disable_duet: ttMeta.disableDuet ?? false,
-        disable_comment: false,
-        disable_stitch: ttMeta.disableStitch ?? false,
-      },
-      source_info: {
-        source: "FILE_UPLOAD",
-        video_size: videoSize,
-        chunk_size: chunkSize,
-        total_chunk_count: totalChunks,
-      },
+  const initPayload = {
+    post_info: {
+      title,
+      privacy_level: ttMeta.privacy ?? "PUBLIC_TO_EVERYONE",
+      disable_duet: ttMeta.disableDuet ?? false,
+      disable_comment: false,
+      disable_stitch: ttMeta.disableStitch ?? false,
     },
-    { headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json; charset=UTF-8" } }
-  );
-  console.log("[TikTok] init payload:", JSON.stringify({ videoSize, chunkSize, totalChunks }));
+    source_info: {
+      source: "FILE_UPLOAD",
+      video_size: videoSize,
+      chunk_size: chunkSize,
+      total_chunk_count: totalChunks,
+    },
+  };
+  console.log("[TikTok] init payload:", JSON.stringify({ videoSize, chunkSize, totalChunks, types: { vs: typeof videoSize, cs: typeof chunkSize, tc: typeof totalChunks } }));
+
+  let initRes;
+  try {
+    initRes = await axios.post(
+      "https://open.tiktokapis.com/v2/post/publish/video/init/",
+      initPayload,
+      { headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json; charset=UTF-8" } }
+    );
+  } catch (axiosErr) {
+    const errData = axiosErr.response?.data;
+    console.log("[TikTok] init HTTP error:", axiosErr.response?.status, JSON.stringify(errData));
+    throw new Error(`TikTok init HTTP ${axiosErr.response?.status}: ${JSON.stringify(errData)}`);
+  }
   console.log("[TikTok] init response:", JSON.stringify(initRes.data));
   if (initRes.data?.error?.code && initRes.data.error.code !== "ok") {
     throw new Error(`TikTok init failed — ${JSON.stringify(initRes.data.error)}`);

@@ -1,6 +1,35 @@
 import axios from "axios";
 import prisma from "../lib/prisma.js";
-import { decrypt } from "../lib/encryption.js";
+import { decrypt, encrypt } from "../lib/encryption.js";
+
+async function getValidYouTubeToken(account) {
+  const now = Date.now();
+  const expiresAt = account.expiresAt ? new Date(account.expiresAt).getTime() : 0;
+
+  if (expiresAt > now + 5 * 60 * 1000) {
+    return decrypt(account.accessToken);
+  }
+
+  const refreshToken = account.refreshToken ? decrypt(account.refreshToken) : null;
+  if (!refreshToken) throw new Error("No YouTube refresh token — user must reconnect");
+
+  const { data } = await axios.post("https://oauth2.googleapis.com/token", {
+    client_id: process.env.GOOGLE_CLIENT_ID,
+    client_secret: process.env.GOOGLE_CLIENT_SECRET,
+    refresh_token: refreshToken,
+    grant_type: "refresh_token",
+  });
+
+  await prisma.platformAccount.update({
+    where: { id: account.id },
+    data: {
+      accessToken: encrypt(data.access_token),
+      expiresAt: new Date(now + data.expires_in * 1000),
+    },
+  });
+
+  return data.access_token;
+}
 
 // ── Facebook / Instagram (Meta Graph API) ─────────────────────────────────────
 
@@ -295,7 +324,8 @@ export async function syncPostMetrics(postId) {
     } else if (result.platform === "instagram") {
       metrics = await fetchInstagramPostMetrics(result.externalId, decrypt(account.accessToken));
     } else if (result.platform === "youtube") {
-      metrics = await fetchYouTubePostMetrics(result.externalId, decrypt(account.accessToken));
+      const ytToken = await getValidYouTubeToken(account);
+      metrics = await fetchYouTubePostMetrics(result.externalId, ytToken);
     } else if (result.platform === "tiktok") {
       metrics = mockTikTokPostMetrics();
     }
@@ -331,7 +361,8 @@ export async function syncAccountMetrics(organizationId) {
       } else if (account.platform === "instagram") {
         metrics = await fetchInstagramAccountMetrics(account.accountId, decrypt(account.accessToken));
       } else if (account.platform === "youtube") {
-        metrics = await fetchYouTubeAccountMetrics(account.accountId, decrypt(account.accessToken));
+        const ytToken = await getValidYouTubeToken(account);
+        metrics = await fetchYouTubeAccountMetrics(account.accountId, ytToken);
       } else if (account.platform === "tiktok") {
         metrics = {
           followers: Math.floor(Math.random() * 2000) + 100,

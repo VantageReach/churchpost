@@ -1,5 +1,6 @@
 import { createPublishWorker, publishQueue } from "../lib/redis.js";
 import { publishPost } from "../services/publisher.js";
+import { enqueuePostMetricsSync } from "./analyticsWorker.js";
 import prisma from "../lib/prisma.js";
 
 export function startPublishWorker() {
@@ -12,8 +13,18 @@ export function startPublishWorker() {
     console.error(`[Publish Worker] Job ${job?.id} failed:`, err.message);
   });
 
-  worker.on("completed", (job) => {
+  worker.on("completed", async (job) => {
     console.log(`[Publish Worker] Job ${job.id} completed`);
+    const { postId } = job.data;
+    try {
+      const post = await prisma.post.findUnique({ where: { id: postId }, select: { status: true } });
+      if (post?.status === "PUBLISHED" || post?.status === "PARTIAL") {
+        // Fetch metrics 1 hour after publish (platforms need time to process)
+        await enqueuePostMetricsSync(postId, 60 * 60 * 1000);
+      }
+    } catch (err) {
+      console.warn(`[Publish Worker] Failed to enqueue analytics for ${postId}:`, err.message);
+    }
   });
 
   return worker;

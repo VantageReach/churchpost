@@ -114,6 +114,7 @@ model MediaAsset {
   height      Int?
   variants    MediaVariant[]
   createdAt   DateTime       @default(now())
+  cleanedAt   DateTime?
 }
 
 model MediaVariant {

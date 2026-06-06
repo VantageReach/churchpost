@@ -10,6 +10,7 @@ import app from "./app.js";
 import { startPcSyncWorker, scheduleExistingOrgs } from "./workers/pcSyncWorker.js";
 import { startPublishWorker, startPublishScheduler } from "./workers/publishWorker.js";
 import { startAnalyticsWorker } from "./workers/analyticsWorker.js";
+import { startMediaCleanupWorker } from "./workers/mediaCleanupWorker.js";
 
 const PORT = process.env.PORT || 3001;
 
@@ -27,4 +28,7 @@ app.listen(PORT, async () => {
 
   // Start analytics worker
   startAnalyticsWorker();
+
+  // Start media cleanup worker (deletes R2 files 30 days after publish)
+  startMediaCleanupWorker();
 });

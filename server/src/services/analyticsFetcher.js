@@ -35,8 +35,8 @@ async function getValidYouTubeToken(account) {
 
 async function fetchFacebookPostMetrics(postId, externalId, accessToken) {
   const fields = [
-    "impressions",
-    "reach",
+    "post_impressions",
+    "post_impressions_unique",
     "post_reactions_by_type_total",
     "post_activity_by_action_type",
     "post_clicks",
@@ -64,8 +64,8 @@ async function fetchFacebookPostMetrics(postId, externalId, accessToken) {
     const comments = activity.comment ?? null;
     const shares = activity.share ?? null;
 
-    const impressions = byName["post_impressions"] ?? byName["impressions"] ?? null;
-    const reach = byName["post_impressions_unique"] ?? byName["reach"] ?? null;
+    const impressions = byName["post_impressions"] ?? null;
+    const reach = byName["post_impressions_unique"] ?? null;
     const clicks = byName["post_clicks"] ?? null;
     const videoViews = byName["post_video_views"] ?? null;
     const videoWatchTime =
@@ -277,22 +277,7 @@ async function fetchYouTubeAccountMetrics(channelId, accessToken) {
   }
 }
 
-// ── TikTok (mock — Research API not yet approved) ────────────────────────────
-
-function mockTikTokPostMetrics() {
-  return {
-    impressions: Math.floor(Math.random() * 5000) + 500,
-    reach: Math.floor(Math.random() * 3000) + 300,
-    likes: Math.floor(Math.random() * 300) + 10,
-    comments: Math.floor(Math.random() * 50),
-    shares: Math.floor(Math.random() * 80),
-    saves: Math.floor(Math.random() * 40),
-    clicks: null,
-    videoViews: Math.floor(Math.random() * 4000) + 400,
-    videoWatchTime: parseFloat((Math.random() * 45 + 5).toFixed(1)),
-    engagementRate: parseFloat((Math.random() * 8 + 1).toFixed(2)),
-  };
-}
+// ── TikTok (Research API pending review — no real metrics available yet) ─────
 
 // ── Main sync functions ───────────────────────────────────────────────────────
 
@@ -315,7 +300,7 @@ export async function syncPostMetrics(postId) {
     const account = post.organization.platformAccounts.find(
       (a) => a.platform === result.platform
     );
-    if (!account && result.platform !== "tiktok") continue;
+    if (!account) continue;
 
     let metrics = null;
 
@@ -326,9 +311,8 @@ export async function syncPostMetrics(postId) {
     } else if (result.platform === "youtube") {
       const ytToken = await getValidYouTubeToken(account);
       metrics = await fetchYouTubePostMetrics(result.externalId, ytToken);
-    } else if (result.platform === "tiktok") {
-      metrics = mockTikTokPostMetrics();
     }
+    // tiktok: Research API pending review — skip until approved
 
     if (!metrics) continue;
 
@@ -363,15 +347,8 @@ export async function syncAccountMetrics(organizationId) {
       } else if (account.platform === "youtube") {
         const ytToken = await getValidYouTubeToken(account);
         metrics = await fetchYouTubeAccountMetrics(account.accountId, ytToken);
-      } else if (account.platform === "tiktok") {
-        metrics = {
-          followers: Math.floor(Math.random() * 2000) + 100,
-          following: Math.floor(Math.random() * 500),
-          totalPosts: Math.floor(Math.random() * 50) + 5,
-          impressionsLast30: null,
-          reachLast30: null,
-        };
       }
+      // tiktok: Research API pending review — skip until approved
     } catch (err) {
       console.error(`[analytics] ${account.platform} account fetch threw:`, err?.response?.data || err.message);
       results[account.platform] = { ok: false, error: err?.response?.data?.error?.message || err.message };

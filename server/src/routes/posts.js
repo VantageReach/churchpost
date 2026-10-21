@@ -4,6 +4,7 @@ import prisma from "../lib/prisma.js";
 import { getCalendarEntries } from "../lib/nationalCalendar.js";
 import { publishPost } from "../services/publisher.js";
 import { publishQueue } from "../lib/redis.js";
+import { enqueueScheduledPost, cancelScheduledPost } from "../workers/publishWorker.js";
 
 const router = Router();
 
@@ -162,6 +163,8 @@ router.post("/", requireOrgRole("ORG_ADMIN", "EDITOR"), async (req, res, next) =
       });
     }
 
+    await enqueueScheduledPost(post);
+
     res.status(201).json(post);
   } catch (err) {
     next(err);
@@ -209,6 +212,9 @@ router.put("/:id", requireOrgRole("ORG_ADMIN", "EDITOR"), async (req, res, next)
       },
     });
 
+    await cancelScheduledPost(existing);
+    await enqueueScheduledPost(post);
+
     res.json(post);
   } catch (err) {
     next(err);
@@ -224,6 +230,7 @@ router.delete("/:id", requireOrgRole("ORG_ADMIN", "EDITOR"), async (req, res, ne
     if (!existing) return res.status(404).json({ error: "Post not found" });
 
     await prisma.post.delete({ where: { id: req.params.id } });
+    await cancelScheduledPost(existing);
     res.json({ success: true });
   } catch (err) {
     next(err);

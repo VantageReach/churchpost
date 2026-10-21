@@ -3,6 +3,7 @@ import multer from "multer";
 import { parse } from "csv-parse/sync";
 import { requireOrgRole } from "../middleware/auth.js";
 import prisma from "../lib/prisma.js";
+import { enqueueScheduledPost } from "../workers/publishWorker.js";
 
 const router = Router();
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 5 * 1024 * 1024 } });
@@ -133,6 +134,8 @@ router.post("/commit", requireOrgRole("ORG_ADMIN", "EDITOR"), async (req, res, n
         })
       )
     );
+
+    for (const post of created) await enqueueScheduledPost(post);
 
     // Update job to complete
     await prisma.bulkUploadJob.update({

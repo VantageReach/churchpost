@@ -2,6 +2,26 @@ import { createWorker, pcSyncQueue } from "../lib/redis.js";
 import { syncPlanningCenter } from "../services/planningCenterSync.js";
 import prisma from "../lib/prisma.js";
 
+// Every completed sync (recurring, manual, or first-connect) schedules the next one, so
+// replace any pending sync for the org instead of stacking a parallel chain per restart.
+async function scheduleNextSync(organizationId, delayMs) {
+  const delayed = await pcSyncQueue.getDelayed();
+  await Promise.all(
+    delayed.filter((j) => j.data.organizationId === organizationId).map((j) => j.remove())
+  );
+  await pcSyncQueue.add(
+    "sync",
+    { organizationId },
+    {
+      delay: delayMs,
+      attempts: 3,
+      backoff: { type: "exponential", delay: 5000 },
+      removeOnComplete: true,
+      removeOnFail: 50,
+    }
+  );
+}
+
 export function startPcSyncWorker() {
   const worker = createWorker(async (job) => {
     const { organizationId } = job.data;
@@ -14,12 +34,7 @@ export function startPcSyncWorker() {
       select: { syncFrequencyHours: true },
     });
     if (conn) {
-      const delayMs = (conn.syncFrequencyHours || 4) * 60 * 60 * 1000;
-      await pcSyncQueue.add(
-        "sync",
-        { organizationId },
-        { delay: delayMs, attempts: 3, backoff: { type: "exponential", delay: 5000 } }
-      );
+      await scheduleNextSync(organizationId, (conn.syncFrequencyHours || 4) * 60 * 60 * 1000);
     }
   });
 
@@ -47,11 +62,7 @@ export async function scheduleExistingOrgs() {
     const due = lastSync + freqMs;
     const delayMs = Math.max(0, due - Date.now());
 
-    await pcSyncQueue.add(
-      "sync",
-      { organizationId: conn.organizationId },
-      { delay: delayMs, attempts: 3, backoff: { type: "exponential", delay: 5000 } }
-    );
+    await scheduleNextSync(conn.organizationId, delayMs);
   }
 
   if (connections.length > 0) {
